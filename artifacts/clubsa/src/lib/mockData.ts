@@ -43,6 +43,9 @@ const LS_USERS = "clubsa_users";
 const LS_CLUBS = "clubsa_clubs";
 const LS_CHAT = "clubsa_chat";
 const LS_SESSION = "clubsa_session";
+const LS_PLAYERS = "clubsa_players";
+const LS_LISTINGS = "clubsa_listings";
+const LS_SEED_CLEANUP = "clubsa_seed_cleanup_v2";
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -62,40 +65,19 @@ function writeLS<T>(key: string, value: T): void {
 }
 
 export function getSeedClubs(): MockClub[] {
-  return [
-    { id: "club-1", name: "نسور الرياض", president_id: "", region: "المنطقة الوسطى", logo: null, primary_color: "#1e40af", secondary_color: "#f5f5f5", wins: 12, draws: 3, losses: 5, trophies: 2, budget: 15000000 },
-    { id: "club-2", name: "أبطال جدة", president_id: "", region: "المنطقة الغربية", logo: null, primary_color: "#0e7490", secondary_color: "#facc15", wins: 10, draws: 4, losses: 6, trophies: 1, budget: 12000000 },
-    { id: "club-3", name: "شباب الدمام", president_id: "", region: "المنطقة الشرقية", logo: null, primary_color: "#dc2626", secondary_color: "#f5f5f5", wins: 8, draws: 5, losses: 7, trophies: 0, budget: 8000000 },
-    { id: "club-4", name: "صقور الشمال", president_id: "", region: "المنطقة الشمالية", logo: null, primary_color: "#059669", secondary_color: "#1e293b", wins: 15, draws: 2, losses: 3, trophies: 3, budget: 20000000 },
-    { id: "club-5", name: "نجوم الجنوب", president_id: "", region: "المنطقة الجنوبية", logo: null, primary_color: "#ea580c", secondary_color: "#f5f5f5", wins: 6, draws: 6, losses: 8, trophies: 0, budget: 5000000 },
-  ];
+  return [];
 }
 
 export function getSeedPlayers(): MockProfile[] {
-  return [
-    { id: "p-1", name: "Khalid_07", email: "", password: "", role: "player", region: "المنطقة الوسطى", is_free_agent: false, join_status: "approved", club_id: "club-1", position: "ST", overall: 88, avatar: null, balance: 500000 },
-    { id: "p-2", name: "Saud_10", email: "", password: "", role: "player", region: "المنطقة الوسطى", is_free_agent: false, join_status: "approved", club_id: "club-1", position: "CAM", overall: 85, avatar: null, balance: 350000 },
-    { id: "p-3", name: "Faisal_5", email: "", password: "", role: "player", region: "المنطقة الغربية", is_free_agent: false, join_status: "approved", club_id: "club-2", position: "CB", overall: 82, avatar: null, balance: 400000 },
-    { id: "p-4", name: "Nasser_1", email: "", password: "", role: "player", region: "المنطقة الشرقية", is_free_agent: false, join_status: "approved", club_id: "club-3", position: "GK", overall: 80, avatar: null, balance: 300000 },
-    { id: "p-5", name: "Omar_9", email: "", password: "", role: "player", region: "المنطقة الشمالية", is_free_agent: false, join_status: "approved", club_id: "club-4", position: "WG", overall: 90, avatar: null, balance: 750000 },
-    { id: "p-6", name: "Ali_8", email: "", password: "", role: "player", region: "المنطقة الجنوبية", is_free_agent: true, join_status: "approved", club_id: null, position: "CM", overall: 78, avatar: null, balance: 200000 },
-  ];
+  return [];
 }
 
 export function getSeedChat(): MockChatMessage[] {
-  return [
-    { id: 1, sender_id: "p-1", sender_name: "Khalid_07", text: "مرحبا جميعاً، الميركاتو فتح أخيراً!", created_at: new Date(Date.now() - 3600000).toISOString() },
-    { id: 2, sender_id: "p-5", sender_name: "Omar_9", text: "نبحث عن ظهير أيمن قوي، من عنده؟", created_at: new Date(Date.now() - 1800000).toISOString() },
-    { id: 3, sender_id: "p-2", sender_name: "Saud_10", text: "عندي لاعب بس السعر بيكون مرتفع شوي", created_at: new Date(Date.now() - 600000).toISOString() },
-  ];
+  return [];
 }
 
 export function getSeedListings(): MarketListing[] {
-  return [
-    { id: 1, player_id: "p-1", player_name: "Khalid_07", club_id: "club-1", club_name: "نسور الرياض", position: "ST", overall: 88, price: 5000000, status: "active", created_at: new Date(Date.now() - 86400000).toISOString() },
-    { id: 2, player_id: "p-5", player_name: "Omar_9", club_id: "club-4", club_name: "صقور الشمال", position: "WG", overall: 90, price: 8000000, status: "active", created_at: new Date(Date.now() - 43200000).toISOString() },
-    { id: 3, player_id: "p-3", player_name: "Faisal_5", club_id: "club-2", club_name: "أبطال جدة", position: "CB", overall: 82, price: 3000000, status: "active", created_at: new Date(Date.now() - 21600000).toISOString() },
-  ];
+  return [];
 }
 
 export function getSeedArticles(): Article[] {
@@ -158,22 +140,32 @@ export function getSeedArticles(): Article[] {
 }
 
 export function initStore() {
-  if (!localStorage.getItem(LS_CLUBS)) writeLS(LS_CLUBS, getSeedClubs());
-  if (!localStorage.getItem("clubsa_players")) writeLS("clubsa_players", getSeedPlayers());
-  if (!localStorage.getItem(LS_CHAT)) writeLS(LS_CHAT, getSeedChat());
-  if (!localStorage.getItem("clubsa_listings")) writeLS("clubsa_listings", getSeedListings());
-  if (!localStorage.getItem("clubsa_articles")) writeLS("clubsa_articles", getSeedArticles());
+  if (!localStorage.getItem(LS_SEED_CLEANUP)) {
+    writeLS(LS_CLUBS, []);
+    writeLS(LS_PLAYERS, []);
+    writeLS(LS_CHAT, []);
+    writeLS(LS_LISTINGS, []);
+    localStorage.setItem(LS_SEED_CLEANUP, "done");
+  }
+  if (!localStorage.getItem(LS_CLUBS)) writeLS(LS_CLUBS, []);
+  if (!localStorage.getItem(LS_PLAYERS)) writeLS(LS_PLAYERS, []);
+  if (!localStorage.getItem(LS_CHAT)) writeLS(LS_CHAT, []);
+  if (!localStorage.getItem(LS_LISTINGS)) writeLS(LS_LISTINGS, []);
+  const articles = readLS<Article[]>("clubsa_articles", getSeedArticles())
+    .filter((article) => Boolean(article?.id && article.title?.trim() && article.excerpt?.trim()))
+    .slice(0, MAX_NEWS_ARTICLES);
+  writeLS("clubsa_articles", articles);
 }
 
 export function getUsers(): MockProfile[] { return readLS<MockProfile[]>(LS_USERS, []); }
 export function saveUsers(users: MockProfile[]) { writeLS(LS_USERS, users); }
 export function getClubs(): MockClub[] { return readLS<MockClub[]>(LS_CLUBS, getSeedClubs()); }
 export function saveClubs(clubs: MockClub[]) { writeLS(LS_CLUBS, clubs); }
-export function getPlayers(): MockProfile[] { return readLS<MockProfile[]>("clubsa_players", getSeedPlayers()); }
+export function getPlayers(): MockProfile[] { return readLS<MockProfile[]>(LS_PLAYERS, []); }
 export function savePlayers(players: MockProfile[]) { writeLS("clubsa_players", players); }
-export function getChat(): MockChatMessage[] { return readLS<MockChatMessage[]>(LS_CHAT, getSeedChat()); }
+export function getChat(): MockChatMessage[] { return readLS<MockChatMessage[]>(LS_CHAT, []); }
 export function saveChat(msgs: MockChatMessage[]) { writeLS(LS_CHAT, msgs); }
-export function getListings(): MarketListing[] { return readLS<MarketListing[]>("clubsa_listings", getSeedListings()); }
+export function getListings(): MarketListing[] { return readLS<MarketListing[]>(LS_LISTINGS, []); }
 export function saveListings(l: MarketListing[]) { writeLS("clubsa_listings", l); }
 const MAX_NEWS_ARTICLES = 6;
 

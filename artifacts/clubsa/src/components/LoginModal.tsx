@@ -214,7 +214,7 @@ export default function LoginModal({
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="مثال: Faisal_10"
+                  placeholder="اكتب اسمك"
                   className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
                 />
               </label>
@@ -261,7 +261,7 @@ export default function LoginModal({
                   <input
                     value={club}
                     onChange={(e) => setClub(e.target.value)}
-                    placeholder="مثال: نسور الرياض"
+                    placeholder="اكتب اسم النادي"
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
                   />
                 </label>
@@ -271,7 +271,7 @@ export default function LoginModal({
                   <input
                     value={club}
                     onChange={(e) => setClub(e.target.value)}
-                    placeholder="مثال: نسور الرياض"
+                    placeholder="اكتب اسم النادي"
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
                   />
                   <p className="text-[11px] text-amber-400/80 mt-1">ستكون حالة انضمامك: بانتظار موافقة رئيس النادي</p>

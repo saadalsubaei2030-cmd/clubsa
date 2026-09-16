@@ -76,7 +76,7 @@ export default function ChatPage({ auth, onRequireLogin }: { auth: AuthUser | nu
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center">
                 <MessageCircle size={28} className="text-slate-600 mb-3" />
-                <p className="text-sm font-bold text-slate-300">لا توجد رسائل حالياً، كُن أول من يكتب!</p>
+                <p className="text-sm font-bold text-slate-300">لا توجد بيانات حالياً</p>
               </div>
             ) : (
               messages.map((m) => (
@@ -122,8 +122,7 @@ export default function ChatPage({ auth, onRequireLogin }: { auth: AuthUser | nu
           <div className="space-y-2 max-h-72 overflow-y-auto">
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Search size={24} className="text-slate-600 mb-3" />
-              <p className="text-sm font-bold text-slate-300">ابحث عن الأندية واللاعبين</p>
-              <p className="text-xs text-slate-500 mt-1">ستظهر نتائج البحث هنا عند كتابة اسم</p>
+              <p className="text-sm font-bold text-slate-300">لا توجد بيانات حالياً</p>
             </div>
           </div>
         </div>
