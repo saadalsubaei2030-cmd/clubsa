@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "CLUBSA"
+description = "منصة عربية لأندية EA FC Pro Clubs تشمل الإحصائيات والمتصدرين، سوق الانتقالات، الأخبار والأدلة، وأدوات تطوير اللاعبين."
+version = "1.0.0"
+id = "artifacts/clubsa"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22450
+
+[services.development]
+run = "pnpm --filter @workspace/clubsa run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/clubsa", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/clubsa/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22450"
+BASE_PATH = "/"
