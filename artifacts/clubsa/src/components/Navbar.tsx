@@ -1,6 +1,7 @@
 import { User, LogOut, Settings, Shield, Wallet } from "lucide-react";
 import { TABS } from "@/data";
 import type { TabId, AuthUser } from "@/types";
+import { formatBalance } from "@/lib/formatters";
 
 function formatAmount(n: number): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "م";
@@ -9,7 +10,7 @@ function formatAmount(n: number): string {
 }
 
 export default function Navbar({
-  active, onChange, auth, onOpenLogin, onLogout, onOpenClubSettings,
+  active, onChange, auth, onOpenLogin, onLogout, onOpenClubSettings, onOpenProfile,
 }: {
   active: TabId;
   onChange: (tab: TabId) => void;
@@ -17,6 +18,7 @@ export default function Navbar({
   onOpenLogin: () => void;
   onLogout: () => void;
   onOpenClubSettings?: () => void;
+  onOpenProfile?: () => void;
 }) {
   return (
     <div className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur border-b border-slate-800">
@@ -59,19 +61,19 @@ export default function Navbar({
             {auth.role === "player" && auth.balance !== undefined && (
               <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-cyan-500/10 border border-cyan-500/20" title="رصيد اللاعب">
                 <Wallet size={13} className="text-cyan-400" />
-                <span className="text-xs font-bold text-cyan-300 tabular-nums">{formatAmount(auth.balance)}</span>
+                <span className="text-xs font-bold text-cyan-300 tabular-nums">{formatBalance(auth.balance)}</span>
               </div>
             )}
 
-            <div className="hidden sm:flex flex-col items-end leading-tight">
+            <button onClick={onOpenProfile} className="hidden sm:flex flex-col items-end leading-tight hover:text-cyan-300 transition-colors">
               <span className="text-xs font-bold text-slate-100">{auth.name}</span>
               <span className="text-[10px] text-slate-500 flex items-center gap-1">
                 {auth.role === "president" && <Shield size={9} className="text-blue-400" />}
                 {auth.club}
                 {auth.joinStatus === "pending" && " · بانتظار الموافقة"}
               </span>
-            </div>
-            <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0" style={auth.clubColors ? { backgroundColor: auth.clubColors.primary } : undefined}>
+            </button>
+            <button onClick={onOpenProfile} className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden shrink-0" style={auth.clubColors ? { backgroundColor: auth.clubColors.primary } : undefined} title="الملف الشخصي">
               {auth.clubLogo ? (
                 <img src={auth.clubLogo} alt={auth.name} className="w-full h-full object-cover" />
               ) : auth.avatar ? (
@@ -79,7 +81,7 @@ export default function Navbar({
               ) : (
                 <User size={15} className={auth.clubColors ? "" : "text-slate-300"} style={auth.clubColors ? { color: auth.clubColors.secondary } : undefined} />
               )}
-            </div>
+            </button>
             <button onClick={onLogout} className="text-slate-500 hover:text-red-400" title="تسجيل الخروج">
               <LogOut size={16} />
             </button>
@@ -105,16 +107,16 @@ export default function Navbar({
 
       {auth && (
         <div className="sm:hidden flex items-center justify-between px-4 pb-2">
-          <span className="text-xs text-slate-500">{auth.name} · {auth.club}</span>
+          <button onClick={onOpenProfile} className="text-xs text-slate-500 hover:text-cyan-300 transition-colors">{auth.name} · {auth.club}</button>
           {auth.role === "president" && auth.budget !== undefined && (
             <span className="text-xs font-bold text-amber-300 flex items-center gap-1">
               <Wallet size={11} /> {formatAmount(auth.budget)}
             </span>
           )}
           {auth.role === "player" && auth.balance !== undefined && (
-            <span className="text-xs font-bold text-cyan-300 flex items-center gap-1">
-              <Wallet size={11} /> {formatAmount(auth.balance)}
-            </span>
+            <button onClick={onOpenProfile} className="text-xs font-bold text-cyan-300 flex items-center gap-1">
+              <Wallet size={11} /> {formatBalance(auth.balance)}
+            </button>
           )}
         </div>
       )}

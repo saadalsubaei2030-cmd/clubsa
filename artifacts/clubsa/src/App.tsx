@@ -8,6 +8,8 @@ import ChatPage from "@/components/ChatPage";
 import MarketPage from "@/components/MarketPage";
 import NewsPage from "@/components/NewsPage";
 import LeaderboardsPage from "@/components/LeaderboardsPage";
+import PlayerProfilePage from "@/components/PlayerProfilePage";
+import ClubProfilePage from "@/components/ClubProfilePage";
 import LoginModal from "@/components/LoginModal";
 import WelcomeModal from "@/components/WelcomeModal";
 import ClubSettingsModal from "@/components/ClubSettingsModal";
@@ -19,15 +21,22 @@ import type { TabId } from "@/types";
 
 export default function App() {
   useGoogleFonts();
-  const { user: auth, loading, signUp, signIn, signOut, completeProfile, setUser } = useAuth();
+  const { user: auth, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, setUser } = useAuth();
   const [tab, setTab] = useState<TabId>("calculator");
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginMode, setLoginMode] = useState<"login" | "register">("login");
   const [clubSettingsOpen, setClubSettingsOpen] = useState(false);
   const [legalPage, setLegalPage] = useState<LegalPage | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [clubProfileId, setClubProfileId] = useState<string | null>(null);
 
-  const handleLogout = () => { signOut(); setWelcomeOpen(true); };
+  const handleLogout = () => {
+    signOut();
+    setProfileOpen(false);
+    setClubProfileId(null);
+    setWelcomeOpen(true);
+  };
   const openLegal = (page: LegalPage) => setLegalPage(page);
 
   const handleWelcomeSelect = (action: "login" | "register" | "guest") => {
@@ -67,15 +76,30 @@ export default function App() {
         onOpenLogin={() => { setLoginMode("login"); setLoginOpen(true); }}
         onLogout={handleLogout}
         onOpenClubSettings={() => setClubSettingsOpen(true)}
+        onOpenProfile={() => setProfileOpen(true)}
       />
 
       <div className="flex-1 px-4 py-8 sm:px-8">
-        {tab === "calculator" && <CalculatorPage auth={auth} onRequireLogin={handleRequireLogin} />}
-        {tab === "tournaments" && <TournamentsPage />}
-        {tab === "chat" && <ChatPage auth={auth} onRequireLogin={handleRequireLogin} />}
-        {tab === "market" && <MarketPage auth={auth} onRequireLogin={handleRequireLogin} />}
-        {tab === "news" && <NewsPage />}
-        {tab === "leaderboards" && <LeaderboardsPage />}
+        {profileOpen && auth ? (
+          <PlayerProfilePage
+            auth={auth}
+            onBack={() => setProfileOpen(false)}
+            onSaveAvatar={(avatar) => saveAvatar(auth.id, avatar)}
+            onOpenClub={(clubId) => { setProfileOpen(false); setClubProfileId(clubId); }}
+            onOpenCalculator={() => { setProfileOpen(false); setTab("calculator"); }}
+          />
+        ) : clubProfileId ? (
+          <ClubProfilePage clubId={clubProfileId} onBack={() => setClubProfileId(null)} />
+        ) : (
+          <>
+            {tab === "calculator" && <CalculatorPage auth={auth} onRequireLogin={handleRequireLogin} onSaveBuild={(build) => auth && saveBuild(auth.id, build)} />}
+            {tab === "tournaments" && <TournamentsPage />}
+            {tab === "chat" && <ChatPage auth={auth} onRequireLogin={handleRequireLogin} />}
+            {tab === "market" && <MarketPage auth={auth} onRequireLogin={handleRequireLogin} onOpenClubProfile={(clubId) => setClubProfileId(clubId)} />}
+            {tab === "news" && <NewsPage />}
+            {tab === "leaderboards" && <LeaderboardsPage />}
+          </>
+        )}
       </div>
 
       <Footer onOpenLegal={openLegal} />

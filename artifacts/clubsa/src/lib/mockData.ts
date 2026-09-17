@@ -1,4 +1,4 @@
-import type { Article, MarketListing, ClubProfile, PlayerProfile, ChatMessage } from "@/types";
+import type { Article, MarketListing, ClubProfile, PlayerProfile, ChatMessage, PlayerBuild } from "@/types";
 
 export type MockClub = {
   id: string;
@@ -29,6 +29,7 @@ export type MockProfile = {
   overall: number;
   avatar: string | null;
   balance: number;
+  player_build?: PlayerBuild | null;
 };
 
 export type MockChatMessage = {
@@ -46,6 +47,8 @@ const LS_SESSION = "clubsa_session";
 const LS_PLAYERS = "clubsa_players";
 const LS_LISTINGS = "clubsa_listings";
 const LS_SEED_CLEANUP = "clubsa_seed_cleanup_v2";
+const LS_WALLET_MIGRATION = "clubsa_wallet_default_v3";
+export const DEFAULT_WALLET_BALANCE = 100000;
 
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -151,6 +154,13 @@ export function initStore() {
   if (!localStorage.getItem(LS_PLAYERS)) writeLS(LS_PLAYERS, []);
   if (!localStorage.getItem(LS_CHAT)) writeLS(LS_CHAT, []);
   if (!localStorage.getItem(LS_LISTINGS)) writeLS(LS_LISTINGS, []);
+  if (!localStorage.getItem(LS_WALLET_MIGRATION)) {
+    const users = getUsers().map((user) =>
+      user.balance === 10 ? { ...user, balance: DEFAULT_WALLET_BALANCE } : user,
+    );
+    saveUsers(users);
+    localStorage.setItem(LS_WALLET_MIGRATION, "done");
+  }
   const articles = readLS<Article[]>("clubsa_articles", getSeedArticles())
     .filter((article) => Boolean(article?.id && article.title?.trim() && article.excerpt?.trim()))
     .slice(0, MAX_NEWS_ARTICLES);
@@ -161,7 +171,12 @@ export function getUsers(): MockProfile[] { return readLS<MockProfile[]>(LS_USER
 export function saveUsers(users: MockProfile[]) { writeLS(LS_USERS, users); }
 export function getClubs(): MockClub[] { return readLS<MockClub[]>(LS_CLUBS, getSeedClubs()); }
 export function saveClubs(clubs: MockClub[]) { writeLS(LS_CLUBS, clubs); }
-export function getPlayers(): MockProfile[] { return readLS<MockProfile[]>(LS_PLAYERS, []); }
+export function getPlayers(): MockProfile[] {
+  const storedPlayers = readLS<MockProfile[]>(LS_PLAYERS, []);
+  const userPlayers = getUsers().filter((user) => user.role === "player" && user.name.trim());
+  const userIds = new Set(userPlayers.map((player) => player.id));
+  return [...userPlayers, ...storedPlayers.filter((player) => !userIds.has(player.id))];
+}
 export function savePlayers(players: MockProfile[]) { writeLS("clubsa_players", players); }
 export function getChat(): MockChatMessage[] { return readLS<MockChatMessage[]>(LS_CHAT, []); }
 export function saveChat(msgs: MockChatMessage[]) { writeLS(LS_CHAT, msgs); }
@@ -181,7 +196,11 @@ export function signUp(email: string, password: string): { uid: string } | { err
   const users = getUsers();
   if (users.some(u => u.email === email)) return { error: "هذا البريد مسجل بالفعل" };
   const newUid = uid();
-  users.push({ id: newUid, name: "", email, password, role: "player", region: "", is_free_agent: false, join_status: "pending", club_id: null, position: null, overall: 0, avatar: null, balance: 100000 });
+  users.push({
+    id: newUid, name: "", email, password, role: "player", region: "",
+    is_free_agent: false, join_status: "pending", club_id: null, position: null,
+    overall: 0, avatar: null, balance: DEFAULT_WALLET_BALANCE, player_build: null,
+  });
   saveUsers(users);
   setSession({ uid: newUid });
   return { uid: newUid };
@@ -252,6 +271,24 @@ export function getProfile(userId: string): MockProfile | null {
   return users.find(u => u.id === userId) || null;
 }
 
+export function updateProfileAvatar(userId: string, avatar: string | null) {
+  const users = getUsers();
+  const user = users.find((entry) => entry.id === userId);
+  if (!user) return;
+  user.avatar = avatar;
+  saveUsers(users);
+}
+
+export function updatePlayerBuild(userId: string, build: PlayerBuild) {
+  const users = getUsers();
+  const user = users.find((entry) => entry.id === userId);
+  if (!user) return;
+  user.position = build.position;
+  user.overall = build.overall;
+  user.player_build = build;
+  saveUsers(users);
+}
+
 export function getClubById(clubId: string): MockClub | null {
   return getClubs().find(c => c.id === clubId) || null;
 }
@@ -282,7 +319,12 @@ export function sendChatMessage(senderId: string, senderName: string, text: stri
 }
 
 export function getClubPlayers(clubId: string): MockProfile[] {
-  return getPlayers().filter(p => p.club_id === clubId);
+  const userPlayers = getUsers().filter((player) => player.club_id === clubId && player.name.trim());
+  const userIds = new Set(userPlayers.map((player) => player.id));
+  return [
+    ...userPlayers,
+    ...getPlayers().filter((player) => player.club_id === clubId && !userIds.has(player.id)),
+  ];
 }
 
 export function getClubProfile(clubId: string): ClubProfile | null {

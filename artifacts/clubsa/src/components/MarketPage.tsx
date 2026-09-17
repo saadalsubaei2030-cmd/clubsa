@@ -142,7 +142,15 @@ function ClubProfileModal({ club, onClose }: { club: ClubProfile; onClose: () =>
   );
 }
 
-export default function MarketPage({ auth, onRequireLogin }: { auth: AuthUser | null; onRequireLogin: () => void }) {
+export default function MarketPage({
+  auth,
+  onRequireLogin,
+  onOpenClubProfile,
+}: {
+  auth: AuthUser | null;
+  onRequireLogin: () => void;
+  onOpenClubProfile?: (clubId: string) => void;
+}) {
   const open = isMercatoOpen();
   const [target] = useState(() => (open ? getNextMercatoClose() : getNextMercatoOpen()));
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => calcTimeLeft(target));
@@ -166,6 +174,10 @@ export default function MarketPage({ auth, onRequireLogin }: { auth: AuthUser | 
   );
 
   const openClubProfile = (clubId: string) => {
+    if (onOpenClubProfile) {
+      onOpenClubProfile(clubId);
+      return;
+    }
     const profile = getClubProfile(clubId);
     if (profile) setClubProfile(profile);
   };

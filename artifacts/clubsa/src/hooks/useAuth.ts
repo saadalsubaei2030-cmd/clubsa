@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
-import { initStore, getSession, setSession, getProfile, getClubById, signUp as mockSignUp, signIn as mockSignIn, signOut as mockSignOut, completeProfile as mockCompleteProfile } from "@/lib/mockData";
-import type { AuthUser } from "@/types";
+import { initStore, getSession, setSession, getProfile, getClubById, signUp as mockSignUp, signIn as mockSignIn, signOut as mockSignOut, completeProfile as mockCompleteProfile, updateProfileAvatar, updatePlayerBuild } from "@/lib/mockData";
+import type { AuthUser, PlayerBuild } from "@/types";
 
 initStore();
 
@@ -51,6 +51,7 @@ export function useAuth() {
       clubColors,
       budget,
       balance,
+      playerBuild: profile.player_build || null,
     };
   }, []);
 
@@ -89,5 +90,17 @@ export function useAuth() {
     return { error: null };
   };
 
-  return { user, loading, signUp, signIn, signOut, completeProfile, setUser, fetchProfile: buildAuthUser };
+  const saveAvatar = (uid: string, avatar: string | null) => {
+    updateProfileAvatar(uid, avatar);
+    const authUser = buildAuthUser(uid);
+    if (authUser) setUser(authUser);
+  };
+
+  const saveBuild = (uid: string, build: PlayerBuild) => {
+    updatePlayerBuild(uid, build);
+    const authUser = buildAuthUser(uid);
+    if (authUser) setUser(authUser);
+  };
+
+  return { user, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, setUser, fetchProfile: buildAuthUser };
 }

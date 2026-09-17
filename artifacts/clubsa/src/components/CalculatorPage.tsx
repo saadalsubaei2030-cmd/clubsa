@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { ChevronDown, RotateCcw, Sparkles } from "lucide-react";
 import { POSITIONS, capForLevel } from "@/data";
-import type { Position, Category } from "@/types";
+import type { Position, Category, AuthUser, PlayerBuild } from "@/types";
 
 const MAX_STAT = 99;
 
@@ -197,13 +197,22 @@ function CategoryPanel({
   );
 }
 
-export default function CalculatorPage({ auth, onRequireLogin }: { auth: { id: string; role: string; name: string; position?: string } | null; onRequireLogin: () => void }) {
+export default function CalculatorPage({
+  auth,
+  onRequireLogin,
+  onSaveBuild,
+}: {
+  auth: AuthUser | null;
+  onRequireLogin: () => void;
+  onSaveBuild?: (build: PlayerBuild) => void;
+}) {
   const [posId, setPosId] = useState("ST");
   const [level, setLevel] = useState(50);
   const [height, setHeight] = useState(178);
   const [weight, setWeight] = useState(74);
   const [values, setValues] = useState<Record<string, number>>({});
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [hasInteracted, setHasInteracted] = useState(false);
 
   const position = POSITIONS.find((p) => p.id === posId)!;
   const budget = budgetForLevel(level, position.type);
@@ -250,14 +259,37 @@ export default function CalculatorPage({ auth, onRequireLogin }: { auth: { id: s
   const tier = tierOf(overall);
   const usedPct = Math.min(100, Math.round((used / budget) * 100));
 
-  const handleChange = (key: string, val: number) => setValues((prev) => ({ ...prev, [key]: val }));
+  useEffect(() => {
+    if (!hasInteracted || !auth || auth.role !== "player" || !onSaveBuild) return;
+    const build: PlayerBuild = {
+      position: posId,
+      overall,
+      stats: catValues,
+      level,
+      height,
+      weight,
+      updated_at: new Date().toISOString(),
+    };
+    onSaveBuild(build);
+    // The callback is intentionally omitted: auth identity and calculator values are the sync keys.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasInteracted, auth?.id, auth?.role, posId, overall, catValues, level, height, weight]);
+
+  const handleChange = (key: string, val: number) => {
+    setHasInteracted(true);
+    setValues((prev) => ({ ...prev, [key]: val }));
+  };
   const handleToggle = (key: string) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
   const handleReset = () => {
+    setHasInteracted(true);
     const cleared: Record<string, number> = {};
     leafKeys.forEach((k) => (cleared[k] = 0));
     setValues(cleared);
   };
-  const handleMetaBuild = () => setValues(metaBuild(position, budget, caps));
+  const handleMetaBuild = () => {
+    setHasInteracted(true);
+    setValues(metaBuild(position, budget, caps));
+  };
 
   return (
     <div className="max-w-6xl mx-auto">

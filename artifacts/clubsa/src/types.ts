@@ -12,6 +12,16 @@ export type Position = {
 
 export type UserRole = "president" | "player";
 
+export type PlayerBuild = {
+  position: string;
+  overall: number;
+  stats: Record<string, number>;
+  level: number;
+  height: number;
+  weight: number;
+  updated_at: string;
+};
+
 export type AuthUser = {
   id: string;
   name: string;
@@ -29,6 +39,7 @@ export type AuthUser = {
   clubColors?: { primary: string; secondary: string };
   budget?: number;
   balance?: number;
+  playerBuild?: PlayerBuild | null;
 };
 
 export type TabId = "chat" | "calculator" | "tournaments" | "market" | "news" | "leaderboards";
@@ -120,6 +131,7 @@ export type PlayerProfile = {
   overall: number;
   avatar: string | null;
   balance: number;
+  player_build?: PlayerBuild | null;
 };
 
 export type LegalPage = "privacy" | "terms" | "contact" | "about";
