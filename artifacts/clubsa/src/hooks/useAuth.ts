@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { initStore, getSession, setSession, getProfile, getClubById, signUp as mockSignUp, signIn as mockSignIn, signOut as mockSignOut, completeProfile as mockCompleteProfile, updateProfileAvatar, updatePlayerBuild } from "@/lib/mockData";
 import type { AuthUser, PlayerBuild } from "@/types";
 
@@ -12,7 +12,7 @@ export function useAuth() {
   });
   const [loading] = useState(false);
 
-  const buildAuthUser = useCallback((uid: string): AuthUser | null => {
+  function buildAuthUser(uid: string): AuthUser | null {
     const profile = getProfile(uid);
     if (!profile || !profile.name) return null;
 
@@ -53,7 +53,7 @@ export function useAuth() {
       balance,
       playerBuild: profile.player_build || null,
     };
-  }, []);
+  }
 
   const signUp = async (email: string, password: string) => {
     const result = mockSignUp(email, password);
