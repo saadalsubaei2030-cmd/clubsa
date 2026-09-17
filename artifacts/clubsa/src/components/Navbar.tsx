@@ -92,7 +92,7 @@ export default function Navbar({
         )}
       </div>
 
-      <div className="sm:hidden flex overflow-x-auto gap-1 px-4 pb-2">
+      <div className="scrollbar-none sm:hidden flex overflow-x-auto gap-1 px-4 pb-2">
         {TABS.map((t) => (
           <button key={t.id} onClick={() => onChange(t.id)}
             className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
