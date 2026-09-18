@@ -93,6 +93,29 @@ export const POSITION_LABELS: Record<string, string> = Object.fromEntries(
   POSITIONS.map((p) => [p.id, p.label]),
 );
 
+export const PLAY_STYLE_OPTIONS = [
+  "Finesse Shot",
+  "Trivela",
+  "Quick Step",
+  "Technical",
+  "Rapid",
+  "First Touch",
+  "Power Shot",
+  "Dead Ball",
+  "Pinged Pass",
+  "Incisive Pass",
+  "Tiki Taka",
+  "Whipped Pass",
+  "Flair",
+  "Anticipate",
+  "Intercept",
+  "Jockey",
+  "Bruiser",
+  "Aerial",
+  "Relentless",
+  "Acrobatic",
+] as const;
+
 export const TOURNAMENTS: Record<string, TournamentData> = {
   "المنطقة الوسطى": { teams: [], matches: [] },
   "المنطقة الغربية": { teams: [], matches: [] },

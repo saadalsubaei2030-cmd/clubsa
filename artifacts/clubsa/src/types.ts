@@ -16,6 +16,8 @@ export type PlayerBuild = {
   position: string;
   overall: number;
   stats: Record<string, number>;
+  playStylePlus?: string | null;
+  playStyles?: string[];
   level: number;
   height: number;
   weight: number;

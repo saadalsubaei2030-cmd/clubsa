@@ -265,6 +265,8 @@ export default function CalculatorPage({
       position: posId,
       overall,
       stats: catValues,
+      playStylePlus: auth.playerBuild?.playStylePlus ?? null,
+      playStyles: auth.playerBuild?.playStyles ?? [],
       level,
       height,
       weight,

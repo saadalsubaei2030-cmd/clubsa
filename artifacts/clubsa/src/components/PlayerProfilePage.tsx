@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { ArrowRight, Camera, ChevronLeft, Pencil, Save, Shield, UserRound, Wallet } from "lucide-react";
-import { POSITION_LABELS } from "@/data";
+import { ArrowRight, Camera, ChevronLeft, Pencil, Save, Shield, Sparkles, UserRound, Wallet } from "lucide-react";
+import { PLAY_STYLE_OPTIONS, POSITIONS, POSITION_LABELS } from "@/data";
 import { formatBalance } from "@/lib/formatters";
 import type { AuthUser, PlayerBuild } from "@/types";
 
@@ -34,10 +34,13 @@ export default function PlayerProfilePage({
   const build = auth.playerBuild;
   const stats = build?.stats || {};
   const [editingStats, setEditingStats] = useState(!build);
+  const [manualPosition, setManualPosition] = useState(build?.position || auth.position || "");
   const [manualOverall, setManualOverall] = useState(build?.overall ?? auth.overall ?? 0);
   const [manualStats, setManualStats] = useState<Record<string, number>>(() =>
     Object.fromEntries(STAT_KEYS.map((key) => [key, build?.stats[key] ?? 0])),
   );
+  const [manualPlayStylePlus, setManualPlayStylePlus] = useState(build?.playStylePlus || "");
+  const [manualPlayStyles, setManualPlayStyles] = useState<string[]>(build?.playStyles || []);
   const [buildSaved, setBuildSaved] = useState(false);
 
   const clampRating = (value: number) => Math.max(0, Math.min(99, Number.isFinite(value) ? value : 0));
@@ -46,25 +49,60 @@ export default function PlayerProfilePage({
     setManualStats((current) => ({ ...current, [key]: clampRating(Number(value) || 0) }));
   };
 
+  const handlePlayStylePlusChange = (value: string) => {
+    setManualPlayStylePlus(value);
+    if (value) {
+      setManualPlayStyles((current) => current.filter((style) => style !== value));
+    }
+  };
+
+  const togglePlayStyle = (style: string) => {
+    setManualPlayStyles((current) =>
+      current.includes(style) ? current.filter((item) => item !== style) : [...current, style],
+    );
+  };
+
   const handleSaveBuild = () => {
     const nextBuild: PlayerBuild = {
-      position: build?.position || auth.position || "ST",
+      position: manualPosition || build?.position || auth.position || "ST",
       overall: clampRating(manualOverall),
       stats: Object.fromEntries(
         STAT_KEYS.map((key) => [key, clampRating(manualStats[key] ?? 0)]),
       ),
+      playStylePlus: manualPlayStylePlus || null,
+      playStyles: manualPlayStyles,
       level: build?.level ?? 50,
       height: build?.height ?? 178,
       weight: build?.weight ?? 74,
       updated_at: new Date().toISOString(),
     };
     onSaveBuild(nextBuild);
+    setManualPosition(nextBuild.position);
     setManualOverall(nextBuild.overall);
     setManualStats(nextBuild.stats);
+    setManualPlayStylePlus(nextBuild.playStylePlus || "");
+    setManualPlayStyles(nextBuild.playStyles || []);
     setEditingStats(false);
     setBuildSaved(true);
     setTimeout(() => setBuildSaved(false), 1800);
   };
+
+  const resetDraft = () => {
+    setManualPosition(build?.position || auth.position || "");
+    setManualOverall(build?.overall ?? auth.overall ?? 0);
+    setManualStats(Object.fromEntries(STAT_KEYS.map((key) => [key, build?.stats[key] ?? 0])));
+    setManualPlayStylePlus(build?.playStylePlus || "");
+    setManualPlayStyles(build?.playStyles || []);
+  };
+
+  const handleToggleEditing = () => {
+    if (editingStats) resetDraft();
+    setEditingStats((current) => !current);
+  };
+
+  const displayedPosition = editingStats ? manualPosition : (auth.position || build?.position || "");
+  const displayedPlayStylePlus = editingStats ? manualPlayStylePlus : (build?.playStylePlus || "");
+  const displayedPlayStyles = editingStats ? manualPlayStyles : (build?.playStyles || []);
 
   const handleAvatar = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -107,7 +145,7 @@ export default function PlayerProfilePage({
               {auth.name}
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-400">
-              <span>{auth.position ? POSITION_LABELS[auth.position] || auth.position : "المركز غير محدد"}</span>
+              <span>{displayedPosition ? POSITION_LABELS[displayedPosition] || displayedPosition : "المركز غير محدد"}</span>
               <span className="text-slate-700">·</span>
               {auth.clubId ? (
                 <button onClick={() => onOpenClub(auth.clubId!)} className="font-bold text-cyan-300 hover:text-cyan-200">
@@ -176,6 +214,92 @@ export default function PlayerProfilePage({
             ))}
           </div>
 
+          {editingStats && (
+            <div className="mb-4 grid gap-4 sm:grid-cols-2">
+              <label className="rounded-xl border border-slate-700 bg-slate-800/70 px-3 py-2">
+                <span className="mb-1 block text-[11px] font-bold text-slate-400">المركز الأساسي</span>
+                <select
+                  value={manualPosition}
+                  onChange={(event) => setManualPosition(event.target.value)}
+                  className="w-full bg-transparent text-sm font-extrabold text-slate-100 outline-none"
+                >
+                  <option value="" className="bg-slate-900">اختر المركز</option>
+                  {POSITIONS.map((position) => (
+                    <option key={position.id} value={position.id} className="bg-slate-900">
+                      {position.id} — {position.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="rounded-xl border border-slate-700 bg-slate-800/70 px-3 py-2">
+                <span className="mb-1 block text-[11px] font-bold text-slate-400">PlayStyle+</span>
+                <select
+                  value={manualPlayStylePlus}
+                  onChange={(event) => handlePlayStylePlusChange(event.target.value)}
+                  className="w-full bg-transparent text-sm font-extrabold text-slate-100 outline-none"
+                >
+                  <option value="" className="bg-slate-900">اختر النمط الأساسي</option>
+                  {PLAY_STYLE_OPTIONS.map((style) => (
+                    <option key={style} value={style} className="bg-slate-900">{style}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
+
+          {editingStats && (
+            <div className="mb-4 rounded-xl border border-slate-700 bg-slate-800/40 p-3">
+              <div className="mb-3 flex items-center gap-2">
+                <Sparkles size={15} className="text-amber-300" />
+                <p className="text-xs font-bold text-slate-300">PlayStyles العادية</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {PLAY_STYLE_OPTIONS.map((style) => {
+                  const selected = manualPlayStyles.includes(style);
+                  const isPrimary = manualPlayStylePlus === style;
+                  return (
+                    <button
+                      key={style}
+                      type="button"
+                      onClick={() => !isPrimary && togglePlayStyle(style)}
+                      className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
+                        isPrimary
+                          ? "cursor-not-allowed border-amber-500/30 bg-amber-500/10 text-amber-300/50"
+                          : selected
+                            ? "border-cyan-400 bg-cyan-500/20 text-cyan-200"
+                            : "border-slate-700 bg-slate-900 text-slate-400 hover:border-cyan-500/50 hover:text-slate-200"
+                      }`}
+                    >
+                      {style}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {(displayedPlayStylePlus || displayedPlayStyles.length > 0) && (
+            <div className="mb-4 rounded-xl border border-slate-800 bg-slate-950/40 p-3">
+              <div className="mb-2 flex items-center gap-2">
+                <Sparkles size={15} className="text-amber-300" />
+                <p className="text-xs font-bold text-slate-300">PlayStyles</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {displayedPlayStylePlus && (
+                  <span className="rounded-full border border-amber-400/40 bg-amber-500/15 px-3 py-1 text-xs font-extrabold text-amber-200">
+                    {displayedPlayStylePlus}+
+                  </span>
+                )}
+                {displayedPlayStyles.map((style) => (
+                  <span key={style} className="rounded-full border border-slate-700 bg-slate-800 px-3 py-1 text-xs font-bold text-slate-300">
+                    {style}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {build ? (
             <p className="text-xs text-slate-500">آخر مزامنة من حاسبة الطاقات: مستوى {build.level} · {build.height} سم · {build.weight} كجم</p>
           ) : (
@@ -184,7 +308,7 @@ export default function PlayerProfilePage({
 
           <div className="mt-5 flex flex-wrap gap-2">
             <button
-              onClick={() => setEditingStats((current) => !current)}
+              onClick={handleToggleEditing}
               className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-bold text-slate-200 hover:border-cyan-500/50 hover:text-white transition-colors"
             >
               <Pencil size={15} /> {editingStats ? "إلغاء التعديل" : "تعديل يدوي"}
