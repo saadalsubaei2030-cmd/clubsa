@@ -85,6 +85,7 @@ export default function App() {
             auth={auth}
             onBack={() => setProfileOpen(false)}
             onSaveAvatar={(avatar) => saveAvatar(auth.id, avatar)}
+            onSaveBuild={(build) => saveBuild(auth.id, build)}
             onOpenClub={(clubId) => { setProfileOpen(false); setClubProfileId(clubId); }}
             onOpenCalculator={() => { setProfileOpen(false); setTab("calculator"); }}
           />
