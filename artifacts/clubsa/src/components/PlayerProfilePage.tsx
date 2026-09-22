@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { ArrowRight, Camera, ChevronLeft, Pencil, Save, Shield, Sparkles, UserRound, Wallet } from "lucide-react";
+import { ArrowRight, Camera, ChevronLeft, ExternalLink, Pencil, Save, Send, Shield, Sparkles, UserRound, Wallet } from "lucide-react";
 import { PLAY_STYLE_OPTIONS, POSITIONS, POSITION_LABELS } from "@/data";
 import { formatBalance } from "@/lib/formatters";
+import { getProfilePath } from "@/lib/mockData";
 import type { AuthUser, PlayerBuild } from "@/types";
 
 const STAT_KEYS = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"] as const;
@@ -21,6 +22,10 @@ export default function PlayerProfilePage({
   onSaveBuild,
   onOpenClub,
   onOpenCalculator,
+  isPublic = false,
+  viewer,
+  inviteStatus,
+  onInviteToClub,
 }: {
   auth: AuthUser;
   onBack: () => void;
@@ -28,12 +33,16 @@ export default function PlayerProfilePage({
   onSaveBuild: (build: PlayerBuild) => void;
   onOpenClub: (clubId: string) => void;
   onOpenCalculator: () => void;
+  isPublic?: boolean;
+  viewer?: AuthUser | null;
+  inviteStatus?: "pending" | "accepted" | "declined" | null;
+  onInviteToClub?: () => void;
 }) {
   const [avatar, setAvatar] = useState(auth.avatar || "");
   const [saved, setSaved] = useState(false);
   const build = auth.playerBuild;
   const stats = build?.stats || {};
-  const [editingStats, setEditingStats] = useState(!build);
+  const [editingStats, setEditingStats] = useState(!isPublic && !build);
   const [manualPosition, setManualPosition] = useState(build?.position || auth.position || "");
   const [manualOverall, setManualOverall] = useState(build?.overall ?? auth.overall ?? 0);
   const [manualStats, setManualStats] = useState<Record<string, number>>(() =>
@@ -103,6 +112,12 @@ export default function PlayerProfilePage({
   const displayedPosition = editingStats ? manualPosition : (auth.position || build?.position || "");
   const displayedPlayStylePlus = editingStats ? manualPlayStylePlus : (build?.playStylePlus || "");
   const displayedPlayStyles = editingStats ? manualPlayStyles : (build?.playStyles || []);
+  const canInviteToClub = isPublic &&
+    viewer?.role === "president" &&
+    Boolean(viewer.clubId) &&
+    auth.role === "player" &&
+    viewer.id !== auth.id &&
+    Boolean(onInviteToClub);
 
   const handleAvatar = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -133,10 +148,12 @@ export default function PlayerProfilePage({
             ) : (
               <UserRound size={42} className="absolute inset-0 m-auto text-slate-500" />
             )}
-            <label className="absolute bottom-2 right-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-500">
-              <Camera size={15} />
-              <input type="file" accept="image/*" onChange={handleAvatar} className="hidden" />
-            </label>
+            {!isPublic && (
+              <label className="absolute bottom-2 right-2 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-blue-600 text-white shadow-lg hover:bg-blue-500">
+                <Camera size={15} />
+                <input type="file" accept="image/*" onChange={handleAvatar} className="hidden" />
+              </label>
+            )}
           </div>
 
           <div className="min-w-0 flex-1">
@@ -156,15 +173,43 @@ export default function PlayerProfilePage({
               )}
             </div>
             {saved && <p className="mt-2 text-xs font-bold text-emerald-300">تم تحديث الصورة</p>}
+            {canInviteToClub && (
+              <button
+                onClick={onInviteToClub}
+                disabled={inviteStatus === "pending" || inviteStatus === "accepted"}
+                className={`mt-3 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-extrabold transition-colors ${
+                  inviteStatus === "pending"
+                    ? "cursor-not-allowed border border-amber-500/20 bg-amber-500/10 text-amber-300"
+                    : inviteStatus === "accepted"
+                      ? "cursor-not-allowed border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                      : "bg-blue-600 text-white hover:bg-blue-500"
+                }`}
+              >
+                <Send size={14} />
+                {inviteStatus === "pending" ? "الدعوة معلّقة" : inviteStatus === "accepted" ? "تم الانضمام" : "دعوة للنادي"}
+              </button>
+            )}
+            {!isPublic && (
+              <a
+                href={getProfilePath(auth.name)}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-cyan-300"
+              >
+                <ExternalLink size={13} /> فتح الرابط العام
+              </a>
+            )}
           </div>
 
-          <div className="flex items-center gap-3 self-start rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3">
-            <Wallet size={18} className="text-cyan-300" />
-            <div>
-              <p className="text-[11px] text-slate-400">المحفظة</p>
-              <p className="text-lg font-extrabold text-cyan-300">{formatBalance(auth.balance || 0)}</p>
+          {!isPublic && (
+            <div className="flex items-center gap-3 self-start rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3">
+              <Wallet size={18} className="text-cyan-300" />
+              <div>
+                <p className="text-[11px] text-slate-400">المحفظة</p>
+                <p className="text-lg font-extrabold text-cyan-300">{formatBalance(auth.balance || 0)}</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
@@ -214,7 +259,7 @@ export default function PlayerProfilePage({
             ))}
           </div>
 
-          {editingStats && (
+          {!isPublic && editingStats && (
             <div className="mb-4 grid gap-4 sm:grid-cols-2">
               <label className="rounded-xl border border-slate-700 bg-slate-800/70 px-3 py-2">
                 <span className="mb-1 block text-[11px] font-bold text-slate-400">المركز الأساسي</span>
@@ -248,7 +293,7 @@ export default function PlayerProfilePage({
             </div>
           )}
 
-          {editingStats && (
+          {!isPublic && editingStats && (
             <div className="mb-4 rounded-xl border border-slate-700 bg-slate-800/40 p-3">
               <div className="mb-3 flex items-center gap-2">
                 <Sparkles size={15} className="text-amber-300" />
@@ -306,24 +351,28 @@ export default function PlayerProfilePage({
             <p className="text-xs text-slate-500">أدخل القيم يدوياً أو افتح الحاسبة لمزامنة بناء اللاعب.</p>
           )}
 
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button
-              onClick={handleToggleEditing}
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-bold text-slate-200 hover:border-cyan-500/50 hover:text-white transition-colors"
-            >
-              <Pencil size={15} /> {editingStats ? "إلغاء التعديل" : "تعديل يدوي"}
-            </button>
-            <button
-              onClick={handleSaveBuild}
-              className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-extrabold text-slate-950 hover:bg-cyan-400 transition-colors"
-            >
-              <Save size={15} /> حفظ / مزامنة البناء
-            </button>
-            <button onClick={onOpenCalculator} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-500 transition-colors">
-              فتح حاسبة الطاقات <ArrowRight size={15} />
-            </button>
-          </div>
-          {buildSaved && <p className="mt-2 text-xs font-bold text-emerald-300">تم حفظ بطاقة اللاعب</p>}
+          {!isPublic && (
+            <>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button
+                  onClick={handleToggleEditing}
+                  className="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 px-4 py-2.5 text-sm font-bold text-slate-200 hover:border-cyan-500/50 hover:text-white transition-colors"
+                >
+                  <Pencil size={15} /> {editingStats ? "إلغاء التعديل" : "تعديل يدوي"}
+                </button>
+                <button
+                  onClick={handleSaveBuild}
+                  className="inline-flex items-center gap-2 rounded-lg bg-cyan-500 px-4 py-2.5 text-sm font-extrabold text-slate-950 hover:bg-cyan-400 transition-colors"
+                >
+                  <Save size={15} /> حفظ / مزامنة البناء
+                </button>
+                <button onClick={onOpenCalculator} className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-500 transition-colors">
+                  فتح حاسبة الطاقات <ArrowRight size={15} />
+                </button>
+              </div>
+              {buildSaved && <p className="mt-2 text-xs font-bold text-emerald-300">تم حفظ بطاقة اللاعب</p>}
+            </>
+          )}
         </section>
 
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">

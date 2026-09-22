@@ -1,4 +1,4 @@
-import type { Article, MarketListing, ClubProfile, PlayerProfile, ChatMessage, PlayerBuild } from "@/types";
+import type { Article, MarketListing, ClubProfile, PlayerProfile, ChatMessage, PlayerBuild, AuthUser, ClubInvite, ClubInviteStatus } from "@/types";
 
 export type MockClub = {
   id: string;
@@ -46,6 +46,7 @@ const LS_CHAT = "clubsa_chat";
 const LS_SESSION = "clubsa_session";
 const LS_PLAYERS = "clubsa_players";
 const LS_LISTINGS = "clubsa_listings";
+const LS_CLUB_INVITES = "clubsa_club_invites";
 const LS_SEED_CLEANUP = "clubsa_seed_cleanup_v2";
 const LS_WALLET_MIGRATION = "clubsa_wallet_default_v3";
 export const DEFAULT_WALLET_BALANCE = 100000;
@@ -154,6 +155,7 @@ export function initStore() {
   if (!localStorage.getItem(LS_PLAYERS)) writeLS(LS_PLAYERS, []);
   if (!localStorage.getItem(LS_CHAT)) writeLS(LS_CHAT, []);
   if (!localStorage.getItem(LS_LISTINGS)) writeLS(LS_LISTINGS, []);
+  if (!localStorage.getItem(LS_CLUB_INVITES)) writeLS(LS_CLUB_INVITES, []);
   if (!localStorage.getItem(LS_WALLET_MIGRATION)) {
     const users = getUsers().map((user) =>
       user.balance === 10 ? { ...user, balance: DEFAULT_WALLET_BALANCE } : user,
@@ -182,6 +184,8 @@ export function getChat(): MockChatMessage[] { return readLS<MockChatMessage[]>(
 export function saveChat(msgs: MockChatMessage[]) { writeLS(LS_CHAT, msgs); }
 export function getListings(): MarketListing[] { return readLS<MarketListing[]>(LS_LISTINGS, []); }
 export function saveListings(l: MarketListing[]) { writeLS("clubsa_listings", l); }
+export function getClubInvites(): ClubInvite[] { return readLS<ClubInvite[]>(LS_CLUB_INVITES, []); }
+export function saveClubInvites(invites: ClubInvite[]) { writeLS(LS_CLUB_INVITES, invites); }
 const MAX_NEWS_ARTICLES = 6;
 
 export function getArticles(): Article[] {
@@ -271,6 +275,45 @@ export function getProfile(userId: string): MockProfile | null {
   return users.find(u => u.id === userId) || null;
 }
 
+export function profileSlug(name: string): string {
+  return encodeURIComponent(name.trim().toLowerCase().replace(/\s+/g, "-"));
+}
+
+export function getProfilePath(name: string): string {
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return `${basePath || ""}/profile/${profileSlug(name)}`;
+}
+
+export function getProfileByUsername(username: string): MockProfile | null {
+  const normalizedUsername = username.trim().toLowerCase().replace(/\s+/g, "-");
+  return getUsers().find((user) => profileSlug(user.name) === encodeURIComponent(normalizedUsername)) || null;
+}
+
+export function getPublicAuthUserByUsername(username: string): AuthUser | null {
+  const profile = getProfileByUsername(username);
+  if (!profile || !profile.name) return null;
+
+  const club = profile.club_id ? getClubById(profile.club_id) : null;
+  return {
+    id: profile.id,
+    name: profile.name,
+    email: "",
+    club: club?.name || "لاعب حر",
+    clubId: profile.club_id,
+    region: profile.region,
+    role: profile.role,
+    isFreeAgent: profile.is_free_agent,
+    joinStatus: profile.join_status as "approved" | "pending" | "rejected" | undefined,
+    position: profile.position || undefined,
+    overall: profile.overall || undefined,
+    avatar: profile.avatar || undefined,
+    clubLogo: club?.logo || undefined,
+    clubColors: club ? { primary: club.primary_color, secondary: club.secondary_color } : undefined,
+    budget: club?.budget,
+    playerBuild: profile.player_build || null,
+  };
+}
+
 export function updateProfileAvatar(userId: string, avatar: string | null) {
   const users = getUsers();
   const user = users.find((entry) => entry.id === userId);
@@ -291,6 +334,71 @@ export function updatePlayerBuild(userId: string, build: PlayerBuild) {
 
 export function getClubById(clubId: string): MockClub | null {
   return getClubs().find(c => c.id === clubId) || null;
+}
+
+export function getPendingClubInvites(userId: string): ClubInvite[] {
+  return getClubInvites().filter((invite) => invite.to_user_id === userId && invite.status === "pending");
+}
+
+export function getClubInviteStatus(fromUserId: string, toUserId: string, clubId: string): ClubInviteStatus | null {
+  const matching = getClubInvites()
+    .filter((invite) => invite.from_user_id === fromUserId && invite.to_user_id === toUserId && invite.club_id === clubId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  return matching[0]?.status || null;
+}
+
+export function createClubInvite(fromUserId: string, toUserId: string, clubId: string): ClubInvite | null {
+  const fromUser = getProfile(fromUserId);
+  const toUser = getProfile(toUserId);
+  const club = getClubById(clubId);
+  if (!fromUser || !toUser || !club || fromUser.role !== "president" || fromUser.club_id !== clubId || toUser.role !== "player" || fromUser.id === toUser.id) {
+    return null;
+  }
+
+  const invites = getClubInvites();
+  const existing = invites.find((invite) =>
+    invite.from_user_id === fromUserId &&
+    invite.to_user_id === toUserId &&
+    invite.club_id === clubId &&
+    invite.status === "pending",
+  );
+  if (existing) return existing;
+
+  const invite: ClubInvite = {
+    id: uid(),
+    club_id: club.id,
+    club_name: club.name,
+    club_logo: club.logo,
+    from_user_id: fromUser.id,
+    from_user_name: fromUser.name,
+    to_user_id: toUser.id,
+    to_user_name: toUser.name,
+    status: "pending",
+    created_at: new Date().toISOString(),
+  };
+  invites.push(invite);
+  saveClubInvites(invites);
+  return invite;
+}
+
+export function respondToClubInvite(inviteId: string, userId: string, status: "accepted" | "declined"): boolean {
+  const invites = getClubInvites();
+  const invite = invites.find((entry) => entry.id === inviteId && entry.to_user_id === userId && entry.status === "pending");
+  if (!invite) return false;
+
+  invite.status = status;
+  saveClubInvites(invites);
+
+  if (status === "accepted") {
+    const users = getUsers();
+    const user = users.find((entry) => entry.id === userId);
+    if (!user) return false;
+    user.club_id = invite.club_id;
+    user.join_status = "approved";
+    user.is_free_agent = false;
+    saveUsers(users);
+  }
+  return true;
 }
 
 export function updateClubSettings(clubId: string, logo: string | null, primary: string, secondary: string) {

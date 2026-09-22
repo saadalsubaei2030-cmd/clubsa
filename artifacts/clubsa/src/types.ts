@@ -24,6 +24,21 @@ export type PlayerBuild = {
   updated_at: string;
 };
 
+export type ClubInviteStatus = "pending" | "accepted" | "declined";
+
+export type ClubInvite = {
+  id: string;
+  club_id: string;
+  club_name: string;
+  club_logo: string | null;
+  from_user_id: string;
+  from_user_name: string;
+  to_user_id: string;
+  to_user_name: string;
+  status: ClubInviteStatus;
+  created_at: string;
+};
+
 export type AuthUser = {
   id: string;
   name: string;

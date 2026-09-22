@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useGoogleFonts } from "@/hooks/useGoogleFonts";
 import { useAuth } from "@/hooks/useAuth";
 import Navbar from "@/components/Navbar";
@@ -16,12 +16,35 @@ import ClubSettingsModal from "@/components/ClubSettingsModal";
 import ConsentBanner from "@/components/ConsentBanner";
 import Footer from "@/components/Footer";
 import LegalModal from "@/components/LegalModal";
+import ClubInviteModal from "@/components/ClubInviteModal";
 import type { LegalPage } from "@/components/LegalModal";
 import type { TabId } from "@/types";
+import {
+  createClubInvite,
+  getClubInviteStatus,
+  getPendingClubInvites,
+  getPublicAuthUserByUsername,
+  respondToClubInvite,
+} from "@/lib/mockData";
+
+function getPublicProfileSlugFromPath(): string | null {
+  const match = window.location.pathname.match(/\/profile\/([^/]+)\/?$/);
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+function getAppHomePath(): string {
+  const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+  return `${basePath || ""}/`;
+}
 
 export default function App() {
   useGoogleFonts();
-  const { user: auth, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, setUser } = useAuth();
+  const { user: auth, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, setUser, fetchProfile } = useAuth();
   const [tab, setTab] = useState<TabId>("calculator");
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -30,6 +53,42 @@ export default function App() {
   const [legalPage, setLegalPage] = useState<LegalPage | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [clubProfileId, setClubProfileId] = useState<string | null>(null);
+  const [publicProfileSlug, setPublicProfileSlug] = useState<string | null>(() => getPublicProfileSlugFromPath());
+  const [invitesOpen, setInvitesOpen] = useState(false);
+  const [inviteRefresh, setInviteRefresh] = useState(0);
+
+  useEffect(() => {
+    const handlePopState = () => setPublicProfileSlug(getPublicProfileSlugFromPath());
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const publicProfile = publicProfileSlug ? getPublicAuthUserByUsername(publicProfileSlug) : null;
+  const pendingInvites = useMemo(
+    () => (auth ? getPendingClubInvites(auth.id) : []),
+    [auth?.id, inviteRefresh],
+  );
+
+  const navigateHome = () => {
+    window.history.pushState({}, "", getAppHomePath());
+    setPublicProfileSlug(null);
+  };
+
+  const handleInviteToClub = () => {
+    if (!auth || !publicProfile || auth.role !== "president" || !auth.clubId || publicProfile.role !== "player") return;
+    createClubInvite(auth.id, publicProfile.id, auth.clubId);
+    setInviteRefresh((value) => value + 1);
+  };
+
+  const handleRespondToInvite = (inviteId: string, status: "accepted" | "declined") => {
+    if (!auth) return;
+    if (!respondToClubInvite(inviteId, auth.id, status)) return;
+    if (status === "accepted") {
+      const refreshedUser = fetchProfile(auth.id);
+      if (refreshedUser) setUser(refreshedUser);
+    }
+    setInviteRefresh((value) => value + 1);
+  };
 
   const handleLogout = () => {
     signOut();
@@ -77,10 +136,35 @@ export default function App() {
         onLogout={handleLogout}
         onOpenClubSettings={() => setClubSettingsOpen(true)}
         onOpenProfile={() => setProfileOpen(true)}
+        pendingInviteCount={pendingInvites.length}
+        onOpenInvites={() => setInvitesOpen(true)}
       />
 
       <div className="flex-1 px-4 py-8 sm:px-8">
-        {profileOpen && auth ? (
+        {publicProfileSlug ? (
+          publicProfile ? (
+            <PlayerProfilePage
+              auth={publicProfile}
+              isPublic
+              viewer={auth}
+              inviteStatus={auth?.clubId ? getClubInviteStatus(auth.id, publicProfile.id, auth.clubId) : null}
+              onInviteToClub={handleInviteToClub}
+              onBack={navigateHome}
+              onSaveAvatar={() => undefined}
+              onSaveBuild={() => undefined}
+              onOpenClub={(clubId) => { navigateHome(); setClubProfileId(clubId); }}
+              onOpenCalculator={() => undefined}
+            />
+          ) : (
+            <div className="mx-auto max-w-3xl py-20 text-center">
+              <p className="text-lg font-extrabold text-slate-200">ملف اللاعب غير موجود</p>
+              <p className="mt-2 text-sm text-slate-500">تأكد من صحة رابط الملف العام.</p>
+              <button onClick={navigateHome} className="mt-5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-500">
+                العودة للرئيسية
+              </button>
+            </div>
+          )
+        ) : profileOpen && auth ? (
           <PlayerProfilePage
             auth={auth}
             onBack={() => setProfileOpen(false)}
@@ -105,7 +189,7 @@ export default function App() {
 
       <Footer onOpenLegal={openLegal} />
 
-      {welcomeOpen && !auth && (
+      {welcomeOpen && !auth && !publicProfileSlug && (
         <WelcomeModal onClose={() => setWelcomeOpen(false)} onSelect={handleWelcomeSelect} />
       )}
       {loginOpen && (
@@ -115,6 +199,13 @@ export default function App() {
           onSignIn={signIn}
           onCompleteProfile={completeProfile}
           initialMode={loginMode}
+        />
+      )}
+      {invitesOpen && auth && (
+        <ClubInviteModal
+          invites={pendingInvites}
+          onClose={() => setInvitesOpen(false)}
+          onRespond={handleRespondToInvite}
         />
       )}
       {clubSettingsOpen && auth && auth.role === "president" && (
