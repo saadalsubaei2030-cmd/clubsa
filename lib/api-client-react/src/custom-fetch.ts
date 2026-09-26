@@ -1,5 +1,10 @@
 export type CustomFetchOptions = RequestInit & {
   responseType?: "json" | "text" | "blob" | "auto";
+  /**
+   * Optional bearer token for callers that cannot provide an Authorization
+   * header directly. `headers.Authorization` still takes precedence.
+   */
+  authToken?: string | null;
 };
 
 export type ErrorType<T = unknown> = ApiError<T>;
@@ -15,7 +20,8 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 // Module-level configuration
 // ---------------------------------------------------------------------------
 
-let _baseUrl: string | null = null;
+const DEFAULT_BASE_URL = "/api";
+let _baseUrl: string | null = DEFAULT_BASE_URL;
 let _authTokenGetter: AuthTokenGetter | null = null;
 
 /**
@@ -65,11 +71,27 @@ function applyBaseUrl(input: RequestInfo | URL): RequestInfo | URL {
   const url = resolveUrl(input);
   // Only prepend to relative paths (starting with /)
   if (!url.startsWith("/")) return input;
+  const basePath = getBasePath(_baseUrl);
+  if (basePath && (url === basePath || url.startsWith(`${basePath}/`))) {
+    if (_baseUrl.startsWith("http://") || _baseUrl.startsWith("https://")) {
+      return new URL(url, _baseUrl).toString();
+    }
+    return input;
+  }
 
   const absolute = `${_baseUrl}${url}`;
   if (typeof input === "string") return absolute;
   if (isUrl(input)) return new URL(absolute);
   return new Request(absolute, input as Request);
+}
+
+function getBasePath(baseUrl: string): string {
+  if (baseUrl.startsWith("/")) return baseUrl.replace(/\/+$/, "");
+  try {
+    return new URL(baseUrl).pathname.replace(/\/+$/, "");
+  } catch {
+    return "";
+  }
 }
 
 function resolveUrl(input: RequestInfo | URL): string {
@@ -327,7 +349,7 @@ export async function customFetch<T = unknown>(
   options: CustomFetchOptions = {},
 ): Promise<T> {
   input = applyBaseUrl(input);
-  const { responseType = "auto", headers: headersInit, ...init } = options;
+  const { responseType = "auto", authToken, headers: headersInit, ...init } = options;
 
   const method = resolveMethod(input, init.method);
 
@@ -349,10 +371,10 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
-  // Attach bearer token when an auth getter is configured and no
-  // Authorization header has been explicitly provided.
-  if (_authTokenGetter && !headers.has("authorization")) {
-    const token = await _authTokenGetter();
+  // Attach a bearer token when request options or the configured getter
+  // supplies one and no Authorization header was explicitly provided.
+  if (!headers.has("authorization")) {
+    const token = authToken ?? (_authTokenGetter ? await _authTokenGetter() : null);
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
     }
@@ -360,7 +382,12 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  const response = await fetch(input, {
+    ...init,
+    credentials: init.credentials ?? "include",
+    method,
+    headers,
+  });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

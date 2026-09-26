@@ -37,6 +37,17 @@ function getPublicProfileSlugFromPath(): string | null {
   }
 }
 
+function getClubIdFromPath(): string | null | undefined {
+  const match = window.location.pathname.match(/\/club(?:\/([^/]+))?\/?$/);
+  if (!match) return undefined;
+  if (!match[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
 function getAppHomePath(): string {
   const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
   return `${basePath || ""}/`;
@@ -52,18 +63,26 @@ export default function App() {
   const [clubSettingsOpen, setClubSettingsOpen] = useState(false);
   const [legalPage, setLegalPage] = useState<LegalPage | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [clubProfileId, setClubProfileId] = useState<string | null>(null);
+  const initialClubRoute = getClubIdFromPath();
+  const [clubPathOpen, setClubPathOpen] = useState(initialClubRoute !== undefined);
+  const [clubProfileId, setClubProfileId] = useState<string | null>(initialClubRoute || null);
   const [publicProfileSlug, setPublicProfileSlug] = useState<string | null>(() => getPublicProfileSlugFromPath());
   const [invitesOpen, setInvitesOpen] = useState(false);
   const [inviteRefresh, setInviteRefresh] = useState(0);
 
   useEffect(() => {
-    const handlePopState = () => setPublicProfileSlug(getPublicProfileSlugFromPath());
+    const handlePopState = () => {
+      const clubRoute = getClubIdFromPath();
+      setPublicProfileSlug(getPublicProfileSlugFromPath());
+      setClubPathOpen(clubRoute !== undefined);
+      setClubProfileId(clubRoute || null);
+    };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
   const publicProfile = publicProfileSlug ? getPublicAuthUserByUsername(publicProfileSlug) : null;
+  const activeClubId = clubProfileId || (clubPathOpen ? auth?.clubId || null : null);
   const pendingInvites = useMemo(
     () => (auth ? getPendingClubInvites(auth.id) : []),
     [auth?.id, inviteRefresh],
@@ -72,6 +91,17 @@ export default function App() {
   const navigateHome = () => {
     window.history.pushState({}, "", getAppHomePath());
     setPublicProfileSlug(null);
+    setClubPathOpen(false);
+    setClubProfileId(null);
+  };
+
+  const openClubProfile = (clubId: string) => {
+    const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+    window.history.pushState({}, "", `${basePath || ""}/club/${encodeURIComponent(clubId)}`);
+    setProfileOpen(false);
+    setPublicProfileSlug(null);
+    setClubPathOpen(true);
+    setClubProfileId(clubId);
   };
 
   const handleInviteToClub = () => {
@@ -93,6 +123,7 @@ export default function App() {
   const handleLogout = () => {
     signOut();
     setProfileOpen(false);
+    setClubPathOpen(false);
     setClubProfileId(null);
     setWelcomeOpen(true);
   };
@@ -152,7 +183,7 @@ export default function App() {
               onBack={navigateHome}
               onSaveAvatar={() => undefined}
               onSaveBuild={() => undefined}
-              onOpenClub={(clubId) => { navigateHome(); setClubProfileId(clubId); }}
+               onOpenClub={openClubProfile}
               onOpenCalculator={() => undefined}
             />
           ) : (
@@ -171,17 +202,26 @@ export default function App() {
             onSaveAvatar={(avatar) => saveAvatar(auth.id, avatar)}
             onSaveBuild={(build) => saveBuild(auth.id, build)}
             onSaveProfile={(updates) => saveProfileSettings(auth.id, updates)}
-            onOpenClub={(clubId) => { setProfileOpen(false); setClubProfileId(clubId); }}
+             onOpenClub={openClubProfile}
             onOpenCalculator={() => { setProfileOpen(false); setTab("calculator"); }}
           />
-        ) : clubProfileId ? (
-          <ClubProfilePage clubId={clubProfileId} viewer={auth} onBack={() => setClubProfileId(null)} />
+        ) : clubPathOpen ? (
+          activeClubId ? (
+            <ClubProfilePage clubId={activeClubId} viewer={auth} onBack={navigateHome} />
+          ) : (
+            <div className="mx-auto max-w-3xl py-20 text-center">
+              <p className="text-lg font-extrabold text-slate-200">لا يوجد نادي مرتبط بهذا الحساب</p>
+              <button onClick={navigateHome} className="mt-5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-500">
+                العودة للرئيسية
+              </button>
+            </div>
+          )
         ) : (
           <>
             {tab === "calculator" && <CalculatorPage auth={auth} onRequireLogin={handleRequireLogin} onSaveBuild={(build) => auth && saveBuild(auth.id, build)} />}
             {tab === "tournaments" && <TournamentsPage />}
             {tab === "chat" && <ChatPage auth={auth} onRequireLogin={handleRequireLogin} />}
-            {tab === "market" && <MarketPage auth={auth} onRequireLogin={handleRequireLogin} onOpenClubProfile={(clubId) => setClubProfileId(clubId)} />}
+            {tab === "market" && <MarketPage auth={auth} onRequireLogin={handleRequireLogin} onOpenClubProfile={openClubProfile} />}
             {tab === "news" && <NewsPage />}
             {tab === "leaderboards" && <LeaderboardsPage />}
           </>
@@ -190,7 +230,7 @@ export default function App() {
 
       <Footer onOpenLegal={openLegal} />
 
-      {welcomeOpen && !auth && !publicProfileSlug && (
+      {welcomeOpen && !auth && !publicProfileSlug && !clubPathOpen && (
         <WelcomeModal onClose={() => setWelcomeOpen(false)} onSelect={handleWelcomeSelect} />
       )}
       {loginOpen && (
