@@ -6,6 +6,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface SquadInputAssignment {
+  /**
+     * @minLength 2
+     * @maxLength 16
+     */
+  slotId: string;
+  /** @nullable */
+  playerId: string | null;
 }

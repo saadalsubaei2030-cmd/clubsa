@@ -44,7 +44,7 @@ function getAppHomePath(): string {
 
 export default function App() {
   useGoogleFonts();
-  const { user: auth, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, setUser, fetchProfile } = useAuth();
+  const { user: auth, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, saveProfileSettings, setUser, fetchProfile } = useAuth();
   const [tab, setTab] = useState<TabId>("calculator");
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -170,11 +170,12 @@ export default function App() {
             onBack={() => setProfileOpen(false)}
             onSaveAvatar={(avatar) => saveAvatar(auth.id, avatar)}
             onSaveBuild={(build) => saveBuild(auth.id, build)}
+            onSaveProfile={(updates) => saveProfileSettings(auth.id, updates)}
             onOpenClub={(clubId) => { setProfileOpen(false); setClubProfileId(clubId); }}
             onOpenCalculator={() => { setProfileOpen(false); setTab("calculator"); }}
           />
         ) : clubProfileId ? (
-          <ClubProfilePage clubId={clubProfileId} onBack={() => setClubProfileId(null)} />
+          <ClubProfilePage clubId={clubProfileId} viewer={auth} onBack={() => setClubProfileId(null)} />
         ) : (
           <>
             {tab === "calculator" && <CalculatorPage auth={auth} onRequireLogin={handleRequireLogin} onSaveBuild={(build) => auth && saveBuild(auth.id, build)} />}

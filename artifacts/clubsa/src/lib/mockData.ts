@@ -20,6 +20,10 @@ export type MockProfile = {
   name: string;
   email: string;
   password: string;
+  username?: string;
+  ea_id?: string;
+  referral_code?: string;
+  referred_by?: string | null;
   role: "president" | "player";
   region: string;
   is_free_agent: boolean;
@@ -156,6 +160,14 @@ export function initStore() {
   if (!localStorage.getItem(LS_CHAT)) writeLS(LS_CHAT, []);
   if (!localStorage.getItem(LS_LISTINGS)) writeLS(LS_LISTINGS, []);
   if (!localStorage.getItem(LS_CLUB_INVITES)) writeLS(LS_CLUB_INVITES, []);
+  const migratedUsers = getUsers().map((user) => ({
+    ...user,
+    username: user.username || `player_${user.id.slice(-6)}`,
+    ea_id: user.ea_id || `EA-${user.id.slice(-6).toUpperCase()}`,
+    referral_code: user.referral_code || `CLUBSA-${user.id.slice(-8).toUpperCase()}`,
+    referred_by: user.referred_by || null,
+  }));
+  saveUsers(migratedUsers);
   if (!localStorage.getItem(LS_WALLET_MIGRATION)) {
     const users = getUsers().map((user) =>
       user.balance === 10 ? { ...user, balance: DEFAULT_WALLET_BALANCE } : user,
@@ -202,6 +214,10 @@ export function signUp(email: string, password: string): { uid: string } | { err
   const newUid = uid();
   users.push({
     id: newUid, name: "", email, password, role: "player", region: "",
+    username: `player_${newUid.slice(-6)}`,
+    ea_id: `EA-${newUid.slice(-6).toUpperCase()}`,
+    referral_code: `CLUBSA-${newUid.slice(-8).toUpperCase()}`,
+    referred_by: null,
     is_free_agent: false, join_status: "pending", club_id: null, position: null,
     overall: 0, avatar: null, balance: DEFAULT_WALLET_BALANCE, player_build: null,
   });
@@ -229,15 +245,29 @@ export function completeProfile(
   region: string,
   isFreeAgent: boolean,
   clubName: string,
+  eaId: string,
+  referralCode?: string | null,
 ): { error: string | null } {
   const users = getUsers();
   const user = users.find(u => u.id === userId);
   if (!user) return { error: "المستخدم غير موجود" };
 
   user.name = name;
+  user.username = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 24) || user.username;
+  user.ea_id = eaId.trim();
   user.role = role;
   user.region = region;
   user.is_free_agent = isFreeAgent;
+
+  const normalizedReferral = referralCode?.trim().toUpperCase();
+  const referrer = normalizedReferral
+    ? users.find((entry) => entry.id !== userId && entry.referral_code?.toUpperCase() === normalizedReferral)
+    : null;
+  if (referrer && !user.referred_by) {
+    user.referred_by = referrer.id;
+    referrer.balance += 10_000;
+    saveUsers(users);
+  }
 
   if (role === "president") {
     const clubs = getClubs();
@@ -298,6 +328,9 @@ export function getPublicAuthUserByUsername(username: string): AuthUser | null {
     id: profile.id,
     name: profile.name,
     email: "",
+    username: profile.username || profileSlug(profile.name),
+    eaId: profile.ea_id || "",
+    referralCode: profile.referral_code || "",
     club: club?.name || "لاعب حر",
     clubId: profile.club_id,
     region: profile.region,
@@ -332,12 +365,36 @@ export function updatePlayerBuild(userId: string, build: PlayerBuild) {
   saveUsers(users);
 }
 
+export function updateProfileDetails(userId: string, updates: { eaId?: string; region?: string; name?: string }) {
+  const users = getUsers();
+  const user = users.find((entry) => entry.id === userId);
+  if (!user) return false;
+  if (updates.eaId?.trim()) user.ea_id = updates.eaId.trim();
+  if (updates.region?.trim()) user.region = updates.region.trim();
+  if (updates.name?.trim()) user.name = updates.name.trim();
+  saveUsers(users);
+  return true;
+}
+
 export function getClubById(clubId: string): MockClub | null {
   return getClubs().find(c => c.id === clubId) || null;
 }
 
 export function getPendingClubInvites(userId: string): ClubInvite[] {
   return getClubInvites().filter((invite) => invite.to_user_id === userId && invite.status === "pending");
+}
+
+export function searchPlayersForInvite(query: string, clubId: string): MockProfile[] {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) return [];
+  return getUsers()
+    .filter((user) => user.role === "player" && user.name.trim() && user.club_id !== clubId)
+    .filter((user) =>
+      user.name.toLowerCase().includes(normalized) ||
+      (user.username || "").toLowerCase().includes(normalized) ||
+      (user.ea_id || "").toLowerCase().includes(normalized),
+    )
+    .slice(0, 8);
 }
 
 export function getClubInviteStatus(fromUserId: string, toUserId: string, clubId: string): ClubInviteStatus | null {
@@ -433,6 +490,32 @@ export function getClubPlayers(clubId: string): MockProfile[] {
     ...userPlayers,
     ...getPlayers().filter((player) => player.club_id === clubId && !userIds.has(player.id)),
   ];
+}
+
+export type LocalSquad = {
+  clubId: string;
+  formation: "4-3-3" | "4-2-3-1";
+  assignments: Array<{ slotId: string; playerId: string | null }>;
+  updatedAt: string;
+};
+
+const LS_SQUADS = "clubsa_squads";
+
+export function getClubSquad(clubId: string): LocalSquad | null {
+  const squads = readLS<LocalSquad[]>(LS_SQUADS, []);
+  return squads.find((squad) => squad.clubId === clubId) || null;
+}
+
+export function saveClubSquad(
+  clubId: string,
+  squad: Pick<LocalSquad, "formation" | "assignments">,
+): LocalSquad {
+  const squads = readLS<LocalSquad[]>(LS_SQUADS, []);
+  const saved: LocalSquad = { ...squad, clubId, updatedAt: new Date().toISOString() };
+  const next = squads.filter((entry) => entry.clubId !== clubId);
+  next.push(saved);
+  writeLS(LS_SQUADS, next);
+  return saved;
 }
 
 export function getClubProfile(clubId: string): ClubProfile | null {

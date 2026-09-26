@@ -13,6 +13,8 @@ type CompleteProfileFn = (
   region: string,
   isFreeAgent: boolean,
   clubName: string,
+  eaId: string,
+  referralCode?: string | null,
 ) => Promise<{ error: any | null }>;
 
 export default function LoginModal({
@@ -34,6 +36,7 @@ export default function LoginModal({
   const [role, setRole] = useState<UserRole | "">("");
   const [isFreeAgent, setIsFreeAgent] = useState(false);
   const [club, setClub] = useState("");
+  const [eaId, setEaId] = useState("");
   const [region, setRegion] = useState(REGIONS[0]);
   const [emailTouched, setEmailTouched] = useState(false);
   const [emailError, setEmailError] = useState("");
@@ -44,6 +47,7 @@ export default function LoginModal({
   const [pendingEmail, setPendingEmail] = useState<string>("");
   const [step, setStep] = useState<1 | 2>(1);
   const [mode, setMode] = useState<"login" | "register">(initialMode);
+  const referralCode = new URLSearchParams(window.location.search).get("ref");
 
   const validateEmail = (value: string): string => {
     const trimmed = value.trim();
@@ -61,6 +65,7 @@ export default function LoginModal({
     name.trim().length >= 2 &&
     role !== "" &&
     (role === "president" ? club.trim().length >= 2 : isFreeAgent || club.trim().length >= 2);
+  const canCompleteProfile = canStep2 && eaId.trim().length >= 3;
 
   const handleStep1 = async () => {
     setAuthError("");
@@ -91,17 +96,14 @@ export default function LoginModal({
         return;
       }
       if (data?.user) {
-        setPendingUid(data.user.id);
-        setPendingEmail(email.trim());
-        setMode("register");
-        setStep(2);
+        onClose();
         setSubmitting(false);
       }
     }
   };
 
   const handleSubmit = async () => {
-    if (!canStep2 || !pendingUid) return;
+    if (!canCompleteProfile || !pendingUid) return;
     setSubmitting(true);
     setAuthError("");
     const { error } = await onCompleteProfile(
@@ -112,6 +114,8 @@ export default function LoginModal({
       region,
       isFreeAgent,
       club.trim(),
+      eaId.trim(),
+      referralCode,
     );
     if (error) {
       setAuthError(error.message || "حدث خطأ أثناء إكمال الملف");
@@ -206,7 +210,7 @@ export default function LoginModal({
             <h2 className="text-lg font-extrabold text-white mb-1" style={{ fontFamily: "Cairo, sans-serif" }}>
               ملف المستخدم
             </h2>
-            <p className="text-xs text-slate-400 mb-5">الخطوة 2 من 2 — أكمل ملفك الشخصي</p>
+            <p className="text-xs text-slate-400 mb-5">الخطوة 2 من 2 — أكمل ملفك الشخصي بدون رمز تحقق</p>
 
             <div className="space-y-3">
               <label className="block">
@@ -217,6 +221,18 @@ export default function LoginModal({
                   placeholder="اكتب اسمك"
                   className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
                 />
+              </label>
+
+              <label className="block">
+                <span className="text-xs text-slate-400 mb-1 block">EA ID <span className="text-cyan-300">*</span></span>
+                <input
+                  value={eaId}
+                  onChange={(e) => setEaId(e.target.value)}
+                  placeholder="مثال: EA_PLAYER_10"
+                  maxLength={32}
+                  className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                />
+                <p className="mt-1 text-[11px] text-slate-500">سيظهر هذا المعرّف في بطاقة ملفك داخل CLUBSA.</p>
               </label>
 
               <div>
@@ -300,10 +316,10 @@ export default function LoginModal({
             )}
 
             <button
-              disabled={!canStep2 || submitting}
+              disabled={!canCompleteProfile || submitting}
               onClick={handleSubmit}
               className={`w-full mt-5 py-2.5 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-2 ${
-                canStep2 && !submitting ? "bg-blue-600 hover:bg-blue-500 text-white" : "bg-slate-800 text-slate-500 cursor-not-allowed"
+                canCompleteProfile && !submitting ? "bg-blue-600 hover:bg-blue-500 text-white" : "bg-slate-800 text-slate-500 cursor-not-allowed"
               }`}
             >
               {submitting && <Loader2 size={14} className="animate-spin" />}

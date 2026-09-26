@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { initStore, getSession, setSession, getProfile, getClubById, signUp as mockSignUp, signIn as mockSignIn, signOut as mockSignOut, completeProfile as mockCompleteProfile, updateProfileAvatar, updatePlayerBuild } from "@/lib/mockData";
+import { initStore, getSession, setSession, getProfile, getClubById, signUp as mockSignUp, signIn as mockSignIn, signOut as mockSignOut, completeProfile as mockCompleteProfile, updateProfileAvatar, updatePlayerBuild, updateProfileDetails } from "@/lib/mockData";
 import type { AuthUser, PlayerBuild } from "@/types";
 
 initStore();
@@ -38,6 +38,9 @@ export function useAuth() {
       id: profile.id,
       name: profile.name,
       email: profile.email,
+      username: profile.username,
+      eaId: profile.ea_id,
+      referralCode: profile.referral_code,
       club: clubName,
       clubId: profile.club_id,
       region: profile.region,
@@ -82,8 +85,10 @@ export function useAuth() {
     region: string,
     isFreeAgent: boolean,
     clubName: string,
+    eaId: string,
+    referralCode?: string | null,
   ) => {
-    const { error } = mockCompleteProfile(uid, name, role, region, isFreeAgent, clubName);
+    const { error } = mockCompleteProfile(uid, name, role, region, isFreeAgent, clubName, eaId, referralCode);
     if (error) return { error: { message: error } };
     const authUser = buildAuthUser(uid);
     if (authUser) setUser(authUser);
@@ -102,5 +107,11 @@ export function useAuth() {
     if (authUser) setUser(authUser);
   };
 
-  return { user, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, setUser, fetchProfile: buildAuthUser };
+  const saveProfileSettings = (uid: string, updates: { eaId?: string; region?: string; name?: string }) => {
+    updateProfileDetails(uid, updates);
+    const authUser = buildAuthUser(uid);
+    if (authUser) setUser(authUser);
+  };
+
+  return { user, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, saveProfileSettings, setUser, fetchProfile: buildAuthUser };
 }

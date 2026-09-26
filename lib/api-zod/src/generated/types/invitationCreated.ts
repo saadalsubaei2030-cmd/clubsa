@@ -5,7 +5,10 @@
  * CLUBSA profile, club, squad, invitation, market, and referral API
  * OpenAPI spec version: 0.1.0
  */
+import type { Invitation } from './invitation';
 
-export interface HealthStatus {
-  status: string;
+export interface InvitationCreated {
+  invitation: Invitation;
+  /** @nullable */
+  inviteUrl: string | null;
 }

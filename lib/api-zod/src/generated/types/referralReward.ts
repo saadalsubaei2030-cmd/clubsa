@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface HealthStatus {
-  status: string;
+export interface ReferralReward {
+  rewarded: boolean;
+  creditsAwarded: number;
+  walletBalance: number;
 }

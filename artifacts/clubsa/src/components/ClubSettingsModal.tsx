@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { X, Shield, Upload, Palette, Check, Loader2 } from "lucide-react";
-import { updateClubSettings } from "@/lib/mockData";
+import { useMemo, useState } from "react";
+import { X, Shield, Upload, Palette, Check, Loader2, Search, Send } from "lucide-react";
+import { createClubInvite, searchPlayersForInvite, updateClubSettings } from "@/lib/mockData";
 import type { AuthUser } from "@/types";
 
 const PRESET_COLORS = [
@@ -22,6 +22,12 @@ export default function ClubSettingsModal({
   const [secondary, setSecondary] = useState(auth.clubColors?.secondary || "#f5f5f5");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [inviteQuery, setInviteQuery] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const inviteCandidates = useMemo(
+    () => (auth.clubId ? searchPlayersForInvite(inviteQuery, auth.clubId) : []),
+    [auth.clubId, inviteQuery],
+  );
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -58,6 +64,52 @@ export default function ClubSettingsModal({
         <p className="text-xs text-slate-400 mb-5">{auth.club} — تخصيص هوية ناديك</p>
 
         <div className="space-y-5">
+          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <Send size={15} className="text-cyan-300" />
+              <div>
+                <p className="text-sm font-extrabold text-slate-100">دعوة لاعب إلى النادي</p>
+                <p className="text-[11px] text-slate-500">ابحث بالاسم أو اسم المستخدم أو EA ID</p>
+              </div>
+            </div>
+            <div className="relative">
+              <Search size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <input
+                value={inviteQuery}
+                onChange={(event) => { setInviteQuery(event.target.value); setInviteMessage(""); }}
+                placeholder="اكتب اسم اللاعب..."
+                className="w-full rounded-lg border border-slate-700 bg-slate-900/80 py-2 pr-9 pl-3 text-sm text-slate-100 outline-none focus:border-cyan-400"
+              />
+            </div>
+            {inviteQuery.trim() && (
+              <div className="mt-2 space-y-2">
+                {inviteCandidates.length === 0 ? (
+                  <p className="rounded-lg bg-slate-900/60 px-3 py-2 text-xs text-slate-500">لم يتم العثور على لاعب.</p>
+                ) : inviteCandidates.map((player) => (
+                  <div key={player.id} className="flex items-center gap-2 rounded-lg border border-slate-800 bg-slate-900/70 p-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-extrabold text-slate-100">{player.name}</p>
+                      <p className="truncate text-[10px] text-slate-500">@{player.username || "player"} · {player.ea_id || "EA ID غير محدد"}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!auth.clubId) return;
+                        const invite = createClubInvite(auth.id, player.id, auth.clubId);
+                        setInviteMessage(invite ? `تم إرسال الدعوة إلى ${player.name}` : "تعذر إرسال الدعوة");
+                        if (invite) setInviteQuery("");
+                      }}
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-cyan-500 px-2.5 py-1.5 text-[11px] font-extrabold text-slate-950 hover:bg-cyan-400"
+                    >
+                      <Send size={12} /> دعوة
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {inviteMessage && <p className="mt-2 text-xs font-bold text-emerald-300">{inviteMessage}</p>}
+          </div>
+
           <div>
             <span className="text-xs text-slate-400 mb-2 block">شعار / صورة النادي</span>
             <div className="flex items-center gap-4">

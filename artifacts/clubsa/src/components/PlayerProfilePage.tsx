@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowRight, Camera, ChevronLeft, ExternalLink, Pencil, Save, Send, Shield, Sparkles, UserRound, Wallet } from "lucide-react";
+import { ArrowRight, Camera, Check, ChevronLeft, Copy, ExternalLink, Pencil, Save, Send, Shield, Sparkles, UserRound, Wallet } from "lucide-react";
 import { PLAY_STYLE_OPTIONS, POSITIONS, POSITION_LABELS } from "@/data";
 import { formatBalance } from "@/lib/formatters";
 import { getProfilePath } from "@/lib/mockData";
@@ -20,6 +20,7 @@ export default function PlayerProfilePage({
   onBack,
   onSaveAvatar,
   onSaveBuild,
+  onSaveProfile,
   onOpenClub,
   onOpenCalculator,
   isPublic = false,
@@ -31,6 +32,7 @@ export default function PlayerProfilePage({
   onBack: () => void;
   onSaveAvatar: (avatar: string | null) => void;
   onSaveBuild: (build: PlayerBuild) => void;
+  onSaveProfile?: (updates: { eaId: string; region: string }) => void;
   onOpenClub: (clubId: string) => void;
   onOpenCalculator: () => void;
   isPublic?: boolean;
@@ -51,6 +53,9 @@ export default function PlayerProfilePage({
   const [manualPlayStylePlus, setManualPlayStylePlus] = useState(build?.playStylePlus || "");
   const [manualPlayStyles, setManualPlayStyles] = useState<string[]>(build?.playStyles || []);
   const [buildSaved, setBuildSaved] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const [copiedReferral, setCopiedReferral] = useState(false);
+  const [profileEaId, setProfileEaId] = useState(auth.eaId || "");
 
   const clampRating = (value: number) => Math.max(0, Math.min(99, Number.isFinite(value) ? value : 0));
 
@@ -118,6 +123,9 @@ export default function PlayerProfilePage({
     auth.role === "player" &&
     viewer.id !== auth.id &&
     Boolean(onInviteToClub);
+  const referralLink = auth.referralCode
+    ? `${window.location.origin}${import.meta.env.BASE_URL}?ref=${encodeURIComponent(auth.referralCode)}`
+    : "";
 
   const handleAvatar = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -381,10 +389,60 @@ export default function PlayerProfilePage({
             <h2 className="text-lg font-extrabold text-white">بيانات الحساب</h2>
           </div>
           <div className="space-y-3 text-sm">
-            <div><p className="text-[11px] text-slate-500">EA ID</p><p className="font-bold text-slate-200">{auth.name}</p></div>
+            <div>
+              <p className="text-[11px] text-slate-500">EA ID</p>
+              {!isPublic && onSaveProfile ? (
+                <div className="mt-1 flex gap-2">
+                  <input
+                    value={profileEaId}
+                    onChange={(event) => setProfileEaId(event.target.value)}
+                    aria-label="EA ID"
+                    className="min-w-0 flex-1 rounded-lg border border-slate-700 bg-slate-800 px-2.5 py-1.5 text-sm font-bold text-slate-100 outline-none focus:border-cyan-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (profileEaId.trim().length < 3) return;
+                      onSaveProfile({ eaId: profileEaId.trim(), region: auth.region });
+                      setProfileSaved(true);
+                      setTimeout(() => setProfileSaved(false), 1800);
+                    }}
+                    className="rounded-lg bg-cyan-500 px-2.5 py-1.5 text-xs font-extrabold text-slate-950 hover:bg-cyan-400"
+                  >
+                    حفظ
+                  </button>
+                </div>
+              ) : (
+                <p className="font-bold text-cyan-300">{auth.eaId || "غير محدد"}</p>
+              )}
+              {profileSaved && <p className="mt-1 text-[11px] font-bold text-emerald-300">تم حفظ EA ID</p>}
+            </div>
             <div><p className="text-[11px] text-slate-500">المنطقة</p><p className="font-bold text-slate-200">{auth.region || "غير محددة"}</p></div>
             <div><p className="text-[11px] text-slate-500">الحالة</p><p className="font-bold text-emerald-300">{auth.joinStatus === "pending" ? "بانتظار الموافقة" : "نشط"}</p></div>
           </div>
+          {!isPublic && auth.referralCode && (
+            <div className="mt-5 border-t border-slate-800 pt-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-[11px] text-slate-500">رابط دعوة صديق</p>
+                  <p className="mt-1 text-xs font-bold text-amber-300">+10,000 رصيد عند التسجيل</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(referralLink);
+                    setCopiedReferral(true);
+                    setTimeout(() => setCopiedReferral(false), 1800);
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-extrabold text-amber-200 hover:bg-amber-500/20"
+                >
+                  {copiedReferral ? <Check size={13} /> : <Copy size={13} />}
+                  {copiedReferral ? "تم النسخ" : "نسخ الرابط"}
+                </button>
+              </div>
+              <input readOnly value={referralLink} className="w-full rounded-lg border border-slate-800 bg-slate-950 px-2.5 py-2 text-[11px] text-slate-400 outline-none" />
+            </div>
+          )}
         </section>
       </div>
     </div>

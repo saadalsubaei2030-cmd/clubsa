@@ -5,7 +5,10 @@
  * CLUBSA profile, club, squad, invitation, market, and referral API
  * OpenAPI spec version: 0.1.0
  */
+import type { ProfileResponse } from './profileResponse';
 
-export interface HealthStatus {
-  status: string;
+export interface MeResponse {
+  email: string;
+  emailVerified: boolean;
+  profile: ProfileResponse | null;
 }

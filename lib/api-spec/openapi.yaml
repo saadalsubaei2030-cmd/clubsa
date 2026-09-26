@@ -3,20 +3,23 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CLUBSA profile, club, squad, invitation, market, and referral API
 servers:
   - url: /api
-    description: Base API path
+    description: Base server path
 tags:
   - name: health
-    description: Health operations
+  - name: profiles
+  - name: clubs
+  - name: invitations
+  - name: referrals
+  - name: market
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +27,299 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /me:
+    get:
+      operationId: getMyProfile
+      tags: [profiles]
+      summary: Get the current user's CLUBSA profile
+      responses:
+        "200":
+          description: Current profile and verification state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          description: Sign in required
+    post:
+      operationId: createMyProfile
+      tags: [profiles]
+      summary: Create the current user's CLUBSA profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileInput"
+      responses:
+        "201":
+          description: Profile created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "400":
+          description: Invalid profile
+        "409":
+          description: Username already taken
+  /me/profile:
+    patch:
+      operationId: updateMyProfile
+      tags: [profiles]
+      summary: Update profile settings, including the required EA ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProfileResponse"
+        "400":
+          description: Invalid profile
+  /profiles/{username}:
+    get:
+      operationId: getPublicPlayerProfile
+      tags: [profiles]
+      summary: Read a public player profile
+      parameters:
+        - name: username
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public player profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicProfile"
+        "404":
+          description: Player not found
+  /players/search:
+    get:
+      operationId: searchPlayers
+      tags: [profiles]
+      summary: Find a player by username
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+      responses:
+        "200":
+          description: Matching players
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerSearchResult"
+  /me/invitations:
+    get:
+      operationId: getMyInvitations
+      tags: [invitations]
+      summary: List pending club invitations for the current player
+      responses:
+        "200":
+          description: Pending invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+  /clubs/{clubId}/invitations:
+    post:
+      operationId: createClubInvitation
+      tags: [invitations]
+      summary: Invite a player by username or create a shareable link
+      parameters:
+        - name: clubId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationInput"
+      responses:
+        "201":
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationCreated"
+        "400":
+          description: Invalid invitation
+        "403":
+          description: Club manager access required
+  /me/invitations/{invitationId}/respond:
+    post:
+      operationId: respondToInvitation
+      tags: [invitations]
+      summary: Accept or reject a pending club invitation
+      parameters:
+        - name: invitationId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationResponseInput"
+      responses:
+        "200":
+          description: Invitation updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationResponse"
+        "403":
+          description: Invitation belongs to another player
+        "404":
+          description: Invitation not found
+  /me/invitations/accept-link:
+    post:
+      operationId: acceptClubInvitationLink
+      tags: [invitations]
+      summary: Accept a shareable club invitation link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitationLinkInput"
+      responses:
+        "200":
+          description: Link invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvitationResponse"
+        "404":
+          description: Invitation link invalid or expired
+  /clubs/{clubId}/roster:
+    get:
+      operationId: getClubRoster
+      tags: [clubs]
+      summary: Read approved club players for lineup assignment
+      parameters:
+        - name: clubId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Club roster
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlayerSearchResult"
+        "404":
+          description: Club not found
+  /clubs/{clubId}/squad:
+    get:
+      operationId: getClubSquad
+      tags: [clubs]
+      summary: Read saved club formation and player assignments
+      parameters:
+        - name: clubId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Formation and lineup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadResponse"
+    put:
+      operationId: saveClubSquad
+      tags: [clubs]
+      summary: Save a club formation and starting lineup
+      parameters:
+        - name: clubId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SquadInput"
+      responses:
+        "200":
+          description: Saved formation and lineup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SquadResponse"
+        "400":
+          description: Invalid formation or player assignment
+        "403":
+          description: Club manager access required
+  /me/referrals:
+    get:
+      operationId: getReferralDashboard
+      tags: [referrals]
+      summary: Read referral link, progress, and wallet balance
+      responses:
+        "200":
+          description: Referral dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralDashboard"
+  /me/referrals/claim:
+    post:
+      operationId: claimReferralReward
+      tags: [referrals]
+      summary: Grant the referrer credits after the new player is verified
+      responses:
+        "200":
+          description: Reward processing result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralReward"
+        "403":
+          description: Email verification required
+  /market/listings:
+    get:
+      operationId: getMarketListings
+      tags: [market]
+      summary: Read active listings with seller EA IDs
+      responses:
+        "200":
+          description: Active player listings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MarketListing"
 components:
   schemas:
     HealthStatus:
@@ -31,6 +327,223 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
-
+      required: [status]
+    ProfileInput:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 24
+          pattern: "^[a-zA-Z0-9_]+$"
+        name:
+          type: string
+          minLength: 2
+          maxLength: 60
+        role:
+          type: string
+          enum: [president, player]
+        region:
+          type: string
+          minLength: 1
+          maxLength: 80
+        eaId:
+          type: string
+          minLength: 3
+          maxLength: 32
+        isFreeAgent:
+          type: boolean
+        clubName:
+          type: ["string", "null"]
+          maxLength: 60
+        referralCode:
+          type: ["string", "null"]
+          maxLength: 32
+      required: [username, name, role, region, eaId, isFreeAgent]
+    ProfileUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 60
+        eaId:
+          type: string
+          minLength: 3
+          maxLength: 32
+        region:
+          type: string
+          minLength: 1
+          maxLength: 80
+      required: [eaId]
+    ProfileResponse:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        name: { type: string }
+        email: { type: string, format: email }
+        emailVerified: { type: boolean }
+        role: { type: string, enum: [president, player] }
+        region: { type: string }
+        eaId: { type: string }
+        isFreeAgent: { type: boolean }
+        joinStatus: { type: string, enum: [approved, pending, rejected] }
+        clubId: { type: ["string", "null"] }
+        clubName: { type: ["string", "null"] }
+        clubLogo: { type: ["string", "null"] }
+        position: { type: ["string", "null"] }
+        overall: { type: integer }
+        avatar: { type: ["string", "null"] }
+        walletBalance: { type: integer }
+        referralCode: { type: string }
+        playerBuild:
+          type: ["object", "null"]
+          additionalProperties: true
+      required: [id, username, name, email, emailVerified, role, region, eaId, isFreeAgent, joinStatus, clubId, clubName, clubLogo, position, overall, avatar, walletBalance, referralCode, playerBuild]
+    MeResponse:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        emailVerified: { type: boolean }
+        profile:
+          oneOf:
+            - $ref: "#/components/schemas/ProfileResponse"
+            - type: "null"
+      required: [email, emailVerified, profile]
+    PublicProfile:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        name: { type: string }
+        region: { type: string }
+        eaId: { type: string }
+        role: { type: string, enum: [president, player] }
+        clubId: { type: ["string", "null"] }
+        clubName: { type: ["string", "null"] }
+        position: { type: ["string", "null"] }
+        overall: { type: integer }
+        avatar: { type: ["string", "null"] }
+      required: [id, username, name, region, eaId, role, clubId, clubName, position, overall, avatar]
+    PlayerSearchResult:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        name: { type: string }
+        eaId: { type: string }
+        region: { type: string }
+        clubId: { type: ["string", "null"] }
+        clubName: { type: ["string", "null"] }
+        position: { type: ["string", "null"] }
+        overall: { type: integer }
+        avatar: { type: ["string", "null"] }
+      required: [id, username, name, eaId, region, clubId, clubName, position, overall, avatar]
+    Invitation:
+      type: object
+      properties:
+        id: { type: string }
+        clubId: { type: string }
+        clubName: { type: string }
+        clubLogo: { type: ["string", "null"] }
+        fromUserId: { type: string }
+        fromUserName: { type: string }
+        status: { type: string, enum: [pending, accepted, declined] }
+        createdAt: { type: string, format: date-time }
+      required: [id, clubId, clubName, clubLogo, fromUserId, fromUserName, status, createdAt]
+    InvitationInput:
+      type: object
+      properties:
+        mode: { type: string, enum: [username, link] }
+        username: { type: ["string", "null"], minLength: 3, maxLength: 24 }
+      required: [mode]
+    InvitationCreated:
+      type: object
+      properties:
+        invitation: { $ref: "#/components/schemas/Invitation" }
+        inviteUrl: { type: ["string", "null"], format: uri }
+      required: [invitation, inviteUrl]
+    InvitationResponseInput:
+      type: object
+      properties:
+        decision: { type: string, enum: [accepted, declined] }
+      required: [decision]
+    InvitationLinkInput:
+      type: object
+      properties:
+        token: { type: string, minLength: 20, maxLength: 128 }
+      required: [token]
+    InvitationResponse:
+      type: object
+      properties:
+        success: { type: boolean }
+        clubId: { type: ["string", "null"] }
+      required: [success, clubId]
+    SquadAssignment:
+      type: object
+      properties:
+        slotId: { type: string, minLength: 2, maxLength: 16 }
+        playerId: { type: ["string", "null"] }
+        playerName: { type: ["string", "null"] }
+        position: { type: string }
+      required: [slotId, playerId, playerName, position]
+    SquadInputAssignment:
+      type: object
+      properties:
+        slotId: { type: string, minLength: 2, maxLength: 16 }
+        playerId: { type: ["string", "null"] }
+      required: [slotId, playerId]
+    SquadResponse:
+      type: object
+      properties:
+        clubId: { type: string }
+        formation: { type: string, enum: ["4-3-3", "4-2-3-1"] }
+        assignments:
+          type: array
+          items: { $ref: "#/components/schemas/SquadAssignment" }
+        updatedAt: { type: string, format: date-time }
+      required: [clubId, formation, assignments, updatedAt]
+    SquadInput:
+      type: object
+      properties:
+        formation: { type: string, enum: ["4-3-3", "4-2-3-1"] }
+        assignments:
+          type: array
+          minItems: 11
+          maxItems: 11
+          items: { $ref: "#/components/schemas/SquadInputAssignment" }
+      required: [formation, assignments]
+    ReferralDashboard:
+      type: object
+      properties:
+        code: { type: string }
+        link: { type: string, format: uri }
+        walletBalance: { type: integer }
+        totalReferrals: { type: integer }
+        verifiedReferrals: { type: integer }
+        pendingReferrals: { type: integer }
+        rewardPerReferral: { type: integer, const: 10000 }
+      required: [code, link, walletBalance, totalReferrals, verifiedReferrals, pendingReferrals, rewardPerReferral]
+    ReferralReward:
+      type: object
+      properties:
+        rewarded: { type: boolean }
+        creditsAwarded: { type: integer }
+        walletBalance: { type: integer }
+      required: [rewarded, creditsAwarded, walletBalance]
+    MarketListing:
+      type: object
+      properties:
+        id: { type: integer }
+        playerId: { type: string }
+        playerUsername: { type: string }
+        playerName: { type: string }
+        eaId: { type: string }
+        clubId: { type: string }
+        clubName: { type: string }
+        position: { type: string }
+        overall: { type: integer }
+        price: { type: integer }
+        createdAt: { type: string, format: date-time }
+      required: [id, playerId, playerUsername, playerName, eaId, clubId, clubName, position, overall, price, createdAt]

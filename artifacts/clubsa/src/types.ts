@@ -43,6 +43,9 @@ export type AuthUser = {
   id: string;
   name: string;
   email: string;
+  username?: string;
+  eaId?: string;
+  referralCode?: string;
   club: string;
   clubId: string | null;
   region: string;

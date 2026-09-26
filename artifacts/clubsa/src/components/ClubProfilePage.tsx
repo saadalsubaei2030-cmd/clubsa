@@ -2,8 +2,10 @@ import { ChevronLeft, Crown, Shield, Trophy, Wallet, UserRound } from "lucide-re
 import { POSITION_LABELS } from "@/data";
 import { formatBalance } from "@/lib/formatters";
 import { getClubById, getClubPlayers, getProfile } from "@/lib/mockData";
+import ClubSquadBuilder from "@/components/ClubSquadBuilder";
+import type { AuthUser } from "@/types";
 
-export default function ClubProfilePage({ clubId, onBack }: { clubId: string; onBack: () => void }) {
+export default function ClubProfilePage({ clubId, onBack, viewer }: { clubId: string; onBack: () => void; viewer?: AuthUser | null }) {
   const club = getClubById(clubId);
   if (!club) {
     return (
@@ -85,6 +87,12 @@ export default function ClubProfilePage({ clubId, onBack }: { clubId: string; on
           </div>
         )}
       </section>
+
+      {viewer?.clubId === club.id && viewer.role === "president" && (
+        <section className="mt-5">
+          <ClubSquadBuilder clubId={club.id} />
+        </section>
+      )}
     </div>
   );
 }

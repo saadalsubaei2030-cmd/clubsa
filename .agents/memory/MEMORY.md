@@ -1,0 +1,1 @@
+- [CLUBSA feature source of truth](clubsa-feature-storage.md) — the current UI uses its existing browser-persistent store; API/database sync remains a separate follow-up.
