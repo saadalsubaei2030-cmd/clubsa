@@ -1,6 +1,6 @@
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
-import { and, desc, eq, ilike, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { db, usersTable, clubsTable, clubMembersTable, clubInvitationsTable, clubSquadsTable, walletTransactionsTable, marketListingsTable } from "@workspace/db";
 import {
@@ -16,12 +16,30 @@ import {
 const router: IRouter = Router();
 const REWARD = 10_000;
 const LINK_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const ALLOWED_PUBLIC_DOMAINS = new Set([
+  "gmail.com", "googlemail.com", "hotmail.com", "hotmail.co.uk", "outlook.com",
+  "live.com", "msn.com", "yahoo.com", "yahoo.co.uk", "icloud.com", "me.com",
+  "proton.me", "protonmail.com",
+]);
+const DISPOSABLE_DOMAINS = new Set([
+  "10minutemail.com", "20minutemail.com", "dispostable.com", "emailondeck.com",
+  "fakeinbox.com", "getnada.com", "guerrillamail.com", "guerrillamail.net",
+  "maildrop.cc", "mailinator.com", "mintemail.com", "moakt.com", "sharklasers.com",
+  "temp-mail.org", "tempmail.com", "throwaway.email", "trashmail.com", "yopmail.com",
+]);
 type AuthRequest = Request & { userId?: string };
 type ClerkUser = { primaryEmailAddress?: { emailAddress: string } | null; emailAddresses?: Array<{ emailAddress: string }> };
 
 function uid(): string { return randomUUID(); }
 function hash(value: string): string { return createHash("sha256").update(value).digest("hex"); }
 function normalizeUsername(value: string): string { return value.trim().toLowerCase(); }
+function isAllowedRegistrationEmail(value: string): boolean {
+  const email = value.trim().toLowerCase();
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[a-z0-9-]{2,63}$/i.test(email)) return false;
+  const [, domain = ""] = email.split("@");
+  if ([...DISPOSABLE_DOMAINS].some((blocked) => domain === blocked || domain.endsWith(`.${blocked}`))) return false;
+  return ALLOWED_PUBLIC_DOMAINS.has(domain) || /^[a-z0-9-]+(?:\.[a-z0-9-]+)*\.gov\.sa$/i.test(domain);
+}
 function emailInfo(user: ClerkUser): { email: string; verified: boolean } {
   const primary = user.primaryEmailAddress ?? user.emailAddresses?.[0];
   return { email: primary?.emailAddress ?? "", verified: true };
@@ -94,6 +112,10 @@ router.get("/me", requireAuth(), async (req, res): Promise<void> => {
 router.post("/me", requireAuth(), async (req, res): Promise<void> => {
   const current = await identity(req);
   if (!current) { error(res, 401, "Sign in required"); return; }
+  if (!isAllowedRegistrationEmail(current.email)) {
+    error(res, 400, "Only approved email domains can register");
+    return;
+  }
   const parsed = CreateMyProfileBody.safeParse(req.body);
   if (!parsed.success) { error(res, 400, parsed.error.message); return; }
   const data = parsed.data;
@@ -186,7 +208,11 @@ router.get("/players/search", requireAuth(true), async (req, res): Promise<void>
   if (!parsed.success) { error(res, 400, parsed.error.message); return; }
   const rows = await db.select({ user: usersTable, clubName: clubsTable.name }).from(usersTable)
     .leftJoin(clubsTable, eq(usersTable.clubId, clubsTable.id))
-    .where(ilike(usersTable.username, `%${parsed.data.q.trim()}%`)).limit(25);
+    .where(or(
+      ilike(usersTable.username, `%${parsed.data.q.trim()}%`),
+      ilike(usersTable.eaId, `%${parsed.data.q.trim()}%`),
+      ilike(usersTable.name, `%${parsed.data.q.trim()}%`),
+    )).limit(25);
   res.json(SearchPlayersResponse.parse(rows.map(rosterOutput)));
 });
 

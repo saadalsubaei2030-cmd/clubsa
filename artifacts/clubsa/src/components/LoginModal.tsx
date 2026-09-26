@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, ChevronLeft, AlertCircle, Shield, User, Loader2 } from "lucide-react";
 import { REGIONS } from "@/data";
 import type { AuthUser, UserRole } from "@/types";
+import { validateLoginEmail, validateRegistrationEmail } from "@/lib/emailValidation";
 
 type SignUpFn = (email: string, password: string) => Promise<{ error: any | null; data: any | null }>;
 type SignInFn = (email: string, password: string) => Promise<{ error: any | null; data: any | null }>;
@@ -49,15 +50,8 @@ export default function LoginModal({
   const [mode, setMode] = useState<"login" | "register">(initialMode);
   const referralCode = new URLSearchParams(window.location.search).get("ref");
 
-  const validateEmail = (value: string): string => {
-    const trimmed = value.trim();
-    if (trimmed.length === 0) return "";
-    if (trimmed.length < 6) return "يجب ألا يقل البريد الإلكتروني عن 6 أحرف";
-    if (trimmed.length > 254) return "يجب ألا يزيد البريد الإلكتروني عن 254 حرفاً";
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-    if (!re.test(trimmed)) return "يرجى إدخال بريد إلكتروني صحيح";
-    return "";
-  };
+  const validateEmail = (value: string): string =>
+    mode === "register" ? validateRegistrationEmail(value) : validateLoginEmail(value);
 
   const emailValid = validateEmail(email) === "";
   const canStep1 = emailValid && password.trim().length >= 4;
@@ -160,6 +154,11 @@ export default function LoginModal({
                     <span className="text-xs">{emailError}</span>
                   </div>
                 )}
+                {mode === "register" && !emailError && (
+                  <p className="mt-1.5 text-[11px] text-slate-500">
+                    مسموح Gmail وHotmail وOutlook والنطاقات الرسمية مثل ‎gov.sa‎ فقط.
+                  </p>
+                )}
               </label>
               <label className="block">
                 <span className="text-xs text-slate-400 mb-1 block">كلمة المرور</span>
@@ -192,7 +191,12 @@ export default function LoginModal({
             </button>
 
             <button
-              onClick={() => { setMode(mode === "register" ? "login" : "register"); setAuthError(""); }}
+               onClick={() => {
+                 const nextMode = mode === "register" ? "login" : "register";
+                 setMode(nextMode);
+                 setAuthError("");
+                 setEmailError("");
+               }}
               className="w-full mt-2 text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
             >
               {mode === "register" ? "لديك حساب؟ تسجيل الدخول" : "ليس لديك حساب؟ إنشاء حساب جديد"}

@@ -1,4 +1,5 @@
 import type { Article, MarketListing, ClubProfile, PlayerProfile, ChatMessage, PlayerBuild, AuthUser, ClubInvite, ClubInviteStatus } from "@/types";
+import { validateRegistrationEmail } from "@/lib/emailValidation";
 
 export type MockClub = {
   id: string;
@@ -209,6 +210,8 @@ export function getSession(): { uid: string } | null { return readLS<{ uid: stri
 export function setSession(s: { uid: string } | null) { writeLS(LS_SESSION, s); }
 
 export function signUp(email: string, password: string): { uid: string } | { error: string } {
+  const emailError = validateRegistrationEmail(email);
+  if (emailError) return { error: emailError };
   const users = getUsers();
   if (users.some(u => u.email === email)) return { error: "هذا البريد مسجل بالفعل" };
   const newUid = uid();

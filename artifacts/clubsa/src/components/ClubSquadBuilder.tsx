@@ -109,7 +109,7 @@ export default function ClubSquadBuilder({ clubId }: { clubId: string }) {
 
   useEffect(() => {
     initializedClub.current = clubId;
-    const players = getClubPlayers(clubId).filter((player) => player.join_status === "approved");
+    const players = getClubPlayers(clubId).filter((player) => player.role === "player" && player.join_status === "approved");
     setRoster(players.map((player) => ({
       id: player.id,
       username: player.username || player.name,
