@@ -129,9 +129,13 @@ function ClubProfileModal({ club, onClose }: { club: ClubProfile; onClose: () =>
                   </div>
                 </div>
                 <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                  p.role === "president" ? "bg-blue-500/15 text-blue-300" : "bg-cyan-500/15 text-cyan-300"
+                  p.role === "president"
+                    ? "bg-blue-500/15 text-blue-300"
+                    : p.role === "scout"
+                      ? "bg-amber-500/15 text-amber-300"
+                      : "bg-cyan-500/15 text-cyan-300"
                 }`}>
-                  {p.role === "president" ? "رئيس" : "لاعب"}
+                  {p.role === "president" ? "رئيس" : p.role === "scout" ? "كشاف" : "لاعب"}
                 </span>
               </div>
             ))}
@@ -184,7 +188,7 @@ export default function MarketPage({
 
   const handleOffer = () => {
     if (!auth) { onRequireLogin(); return; }
-    if (auth.role !== "president") { setOfferError("عرض الانتقالات متاح لرؤساء الأندية فقط."); return; }
+    if (auth.role !== "president" && auth.role !== "scout") { setOfferError("عرض الانتقالات متاح لرئيس النادي والكشاف فقط."); return; }
     const amount = Number(offerAmount);
     if (!amount || amount <= 0) { setOfferError("يرجى إدخال مبلغ صحيح."); return; }
     if (amount < offerListing!.price * 0.5) { setOfferError("العرض منخفض جداً عن قيمة اللاعب."); return; }

@@ -1,4 +1,4 @@
-import type { Position, Tab, TournamentData, CapProfile } from "@/types";
+import type { Position, Tab, TournamentData, CapProfile, UserRole } from "@/types";
 
 export const REGIONS = [
   "المنطقة الوسطى",
@@ -16,6 +16,12 @@ export const TABS: Tab[] = [
   { id: "leaderboards", label: "الإحصائيات" },
   { id: "news", label: "الأخبار والدليل" },
 ];
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  president: "رئيس النادي",
+  scout: "الكشاف",
+  player: "لاعب عادي",
+};
 
 const OUTFIELD_CATEGORIES = [
   { key: "PAC", label: "السرعة", subs: [

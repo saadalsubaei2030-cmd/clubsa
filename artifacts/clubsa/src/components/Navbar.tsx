@@ -1,5 +1,5 @@
 import { Bell, User, LogOut, Settings, Shield, Wallet } from "lucide-react";
-import { TABS } from "@/data";
+import { ROLE_LABELS, TABS } from "@/data";
 import type { TabId, AuthUser } from "@/types";
 import { formatBalance } from "@/lib/formatters";
 
@@ -85,7 +85,7 @@ export default function Navbar({
               <span className="text-xs font-bold text-slate-100">{auth.name}</span>
               <span className="text-[10px] text-slate-500 flex items-center gap-1">
                 {auth.role === "president" && <Shield size={9} className="text-blue-400" />}
-                {auth.club}
+                 {ROLE_LABELS[auth.role]} · {auth.club}
                 {auth.joinStatus === "pending" && " · بانتظار الموافقة"}
               </span>
             </button>
@@ -123,7 +123,7 @@ export default function Navbar({
 
       {auth && (
         <div className="sm:hidden flex items-center justify-between px-4 pb-2">
-          <button onClick={onOpenProfile} className="text-xs text-slate-500 hover:text-cyan-300 transition-colors">{auth.name} · {auth.club}</button>
+           <button onClick={onOpenProfile} className="text-xs text-slate-500 hover:text-cyan-300 transition-colors">{auth.name} · {ROLE_LABELS[auth.role]} · {auth.club}</button>
           {auth.role === "president" && auth.budget !== undefined && (
             <span className="text-xs font-bold text-amber-300 flex items-center gap-1">
               <Wallet size={11} /> {formatAmount(auth.budget)}

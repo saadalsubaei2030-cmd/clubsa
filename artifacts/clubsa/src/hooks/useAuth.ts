@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { initStore, getSession, setSession, getProfile, getClubById, signUp as mockSignUp, signIn as mockSignIn, signOut as mockSignOut, completeProfile as mockCompleteProfile, updateProfileAvatar, updatePlayerBuild, updateProfileDetails } from "@/lib/mockData";
-import type { AuthUser, PlayerBuild } from "@/types";
+import type { AuthUser, PlayerBuild, UserRole } from "@/types";
 
 initStore();
 
@@ -81,7 +81,7 @@ export function useAuth() {
     uid: string,
     email: string,
     name: string,
-    role: "president" | "player",
+    role: UserRole,
     region: string,
     isFreeAgent: boolean,
     clubName: string,

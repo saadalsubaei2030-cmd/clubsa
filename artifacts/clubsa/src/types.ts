@@ -10,7 +10,7 @@ export type Position = {
   weights: Record<string, number>;
 };
 
-export type UserRole = "president" | "player";
+export type UserRole = "president" | "scout" | "player";
 
 export type PlayerBuild = {
   position: string;

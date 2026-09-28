@@ -1,4 +1,4 @@
-import type { Article, MarketListing, ClubProfile, PlayerProfile, ChatMessage, PlayerBuild, AuthUser, ClubInvite, ClubInviteStatus } from "@/types";
+import type { Article, MarketListing, ClubProfile, PlayerProfile, ChatMessage, PlayerBuild, AuthUser, ClubInvite, ClubInviteStatus, UserRole } from "@/types";
 import { validateRegistrationEmail } from "@/lib/emailValidation";
 
 export type MockClub = {
@@ -25,7 +25,7 @@ export type MockProfile = {
   ea_id?: string;
   referral_code?: string;
   referred_by?: string | null;
-  role: "president" | "player";
+  role: UserRole;
   region: string;
   is_free_agent: boolean;
   join_status: string;
@@ -244,7 +244,7 @@ export function signOut() {
 export function completeProfile(
   userId: string,
   name: string,
-  role: "president" | "player",
+  role: UserRole,
   region: string,
   isFreeAgent: boolean,
   clubName: string,
@@ -411,7 +411,8 @@ export function createClubInvite(fromUserId: string, toUserId: string, clubId: s
   const fromUser = getProfile(fromUserId);
   const toUser = getProfile(toUserId);
   const club = getClubById(clubId);
-  if (!fromUser || !toUser || !club || fromUser.role !== "president" || fromUser.club_id !== clubId || toUser.role !== "player" || fromUser.id === toUser.id) {
+  const canInvite = fromUser?.role === "president" || fromUser?.role === "scout";
+  if (!fromUser || !toUser || !club || !canInvite || fromUser.club_id !== clubId || toUser.role !== "player" || fromUser.id === toUser.id) {
     return null;
   }
 

@@ -107,7 +107,7 @@ export default function App() {
   };
 
   const handleInviteToClub = () => {
-    if (!auth || !publicProfile || auth.role !== "president" || !auth.clubId || publicProfile.role !== "player") return;
+    if (!auth || !publicProfile || !["president", "scout"].includes(auth.role) || !auth.clubId || publicProfile.role !== "player") return;
     createClubInvite(auth.id, publicProfile.id, auth.clubId);
     setInviteRefresh((value) => value + 1);
   };
@@ -258,7 +258,7 @@ export default function App() {
           onRespond={handleRespondToInvite}
         />
       )}
-      {invitePlayerOpen && auth && auth.role === "president" && auth.clubId && (
+      {invitePlayerOpen && auth && ["president", "scout"].includes(auth.role) && auth.clubId && (
         <InvitePlayerModal
           auth={auth}
           onClose={() => setInvitePlayerOpen(false)}

@@ -123,7 +123,7 @@ export default function PlayerProfilePage({
   const displayedPlayStylePlus = editingStats ? manualPlayStylePlus : (build?.playStylePlus || "");
   const displayedPlayStyles = editingStats ? manualPlayStyles : (build?.playStyles || []);
   const canInviteToClub = isPublic &&
-    viewer?.role === "president" &&
+    (viewer?.role === "president" || viewer?.role === "scout") &&
     Boolean(viewer.clubId) &&
     auth.role === "player" &&
     viewer.id !== auth.id &&
