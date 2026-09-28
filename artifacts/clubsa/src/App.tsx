@@ -17,6 +17,7 @@ import ConsentBanner from "@/components/ConsentBanner";
 import Footer from "@/components/Footer";
 import LegalModal from "@/components/LegalModal";
 import ClubInviteModal from "@/components/ClubInviteModal";
+import InvitePlayerModal from "@/components/InvitePlayerModal";
 import type { LegalPage } from "@/components/LegalModal";
 import type { TabId } from "@/types";
 import {
@@ -68,6 +69,7 @@ export default function App() {
   const [clubProfileId, setClubProfileId] = useState<string | null>(initialClubRoute || null);
   const [publicProfileSlug, setPublicProfileSlug] = useState<string | null>(() => getPublicProfileSlugFromPath());
   const [invitesOpen, setInvitesOpen] = useState(false);
+  const [invitePlayerOpen, setInvitePlayerOpen] = useState(false);
   const [inviteRefresh, setInviteRefresh] = useState(0);
 
   useEffect(() => {
@@ -202,12 +204,19 @@ export default function App() {
             onSaveAvatar={(avatar) => saveAvatar(auth.id, avatar)}
             onSaveBuild={(build) => saveBuild(auth.id, build)}
             onSaveProfile={(updates) => saveProfileSettings(auth.id, updates)}
+              pendingInvites={pendingInvites}
+              onRespondToInvite={handleRespondToInvite}
              onOpenClub={openClubProfile}
             onOpenCalculator={() => { setProfileOpen(false); setTab("calculator"); }}
           />
         ) : clubPathOpen ? (
           activeClubId ? (
-            <ClubProfilePage clubId={activeClubId} viewer={auth} onBack={navigateHome} />
+            <ClubProfilePage
+              clubId={activeClubId}
+              viewer={auth}
+              onBack={navigateHome}
+              onOpenInvitePlayer={() => setInvitePlayerOpen(true)}
+            />
           ) : (
             <div className="mx-auto max-w-3xl py-20 text-center">
               <p className="text-lg font-extrabold text-slate-200">لا يوجد نادي مرتبط بهذا الحساب</p>
@@ -247,6 +256,13 @@ export default function App() {
           invites={pendingInvites}
           onClose={() => setInvitesOpen(false)}
           onRespond={handleRespondToInvite}
+        />
+      )}
+      {invitePlayerOpen && auth && auth.role === "president" && auth.clubId && (
+        <InvitePlayerModal
+          auth={auth}
+          onClose={() => setInvitePlayerOpen(false)}
+          onInviteSent={() => setInviteRefresh((value) => value + 1)}
         />
       )}
       {clubSettingsOpen && auth && auth.role === "president" && (

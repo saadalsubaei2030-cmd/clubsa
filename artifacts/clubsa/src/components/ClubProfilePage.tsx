@@ -1,11 +1,21 @@
-import { ChevronLeft, Crown, Shield, Trophy, Wallet, UserRound } from "lucide-react";
+import { ChevronLeft, Crown, Shield, Trophy, UserRound, UserPlus, Wallet } from "lucide-react";
 import { POSITION_LABELS } from "@/data";
 import { formatBalance } from "@/lib/formatters";
 import { getClubById, getClubPlayers, getProfile } from "@/lib/mockData";
 import ClubSquadBuilder from "@/components/ClubSquadBuilder";
 import type { AuthUser } from "@/types";
 
-export default function ClubProfilePage({ clubId, onBack, viewer }: { clubId: string; onBack: () => void; viewer?: AuthUser | null }) {
+export default function ClubProfilePage({
+  clubId,
+  onBack,
+  viewer,
+  onOpenInvitePlayer,
+}: {
+  clubId: string;
+  onBack: () => void;
+  viewer?: AuthUser | null;
+  onOpenInvitePlayer?: () => void;
+}) {
   const club = getClubById(clubId);
   if (!club) {
     return (
@@ -30,14 +40,25 @@ export default function ClubProfilePage({ clubId, onBack, viewer }: { clubId: st
           <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-3xl border-2 border-blue-400/50 bg-slate-800">
             {club.logo ? <img src={club.logo} alt={club.name} className="h-full w-full object-cover" /> : <Shield size={38} className="text-slate-500" />}
           </div>
-          <div className="flex-1">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-blue-300">ملف النادي</p>
             <h1 className="mt-1 text-2xl font-extrabold text-white sm:text-3xl" style={{ fontFamily: "Cairo, sans-serif" }}>{club.name}</h1>
             <p className="mt-1 text-sm text-slate-400">{club.region}</p>
           </div>
-          <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
-            <p className="text-[11px] text-slate-400">الميزانية المتبقية</p>
-            <p className="mt-1 flex items-center gap-1.5 text-xl font-extrabold text-amber-300"><Wallet size={17} /> {formatBalance(club.budget)}</p>
+          <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-stretch">
+            <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+              <p className="text-[11px] text-slate-400">الميزانية المتبقية</p>
+              <p className="mt-1 flex items-center gap-1.5 text-xl font-extrabold text-amber-300"><Wallet size={17} /> {formatBalance(club.budget)}</p>
+            </div>
+            {viewer?.id === club.president_id && viewer.role === "president" && onOpenInvitePlayer && (
+              <button
+                type="button"
+                onClick={onOpenInvitePlayer}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-cyan-500 px-4 py-3 text-sm font-extrabold text-slate-950 transition-colors hover:bg-cyan-400"
+              >
+                <UserPlus size={17} /> دعوة لاعب
+              </button>
+            )}
           </div>
         </div>
         <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">

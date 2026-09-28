@@ -3,7 +3,8 @@ import { ArrowRight, Camera, Check, ChevronLeft, Copy, ExternalLink, Pencil, Sav
 import { PLAY_STYLE_OPTIONS, POSITIONS, POSITION_LABELS } from "@/data";
 import { formatBalance } from "@/lib/formatters";
 import { getProfilePath } from "@/lib/mockData";
-import type { AuthUser, PlayerBuild } from "@/types";
+import type { AuthUser, ClubInvite, PlayerBuild } from "@/types";
+import PendingClubInvites from "@/components/PendingClubInvites";
 
 const STAT_KEYS = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"] as const;
 const STAT_LABELS: Record<string, string> = {
@@ -27,6 +28,8 @@ export default function PlayerProfilePage({
   viewer,
   inviteStatus,
   onInviteToClub,
+  pendingInvites = [],
+  onRespondToInvite,
 }: {
   auth: AuthUser;
   onBack: () => void;
@@ -39,6 +42,8 @@ export default function PlayerProfilePage({
   viewer?: AuthUser | null;
   inviteStatus?: "pending" | "accepted" | "declined" | null;
   onInviteToClub?: () => void;
+  pendingInvites?: ClubInvite[];
+  onRespondToInvite?: (inviteId: string, status: "accepted" | "declined") => void;
 }) {
   const [avatar, setAvatar] = useState(auth.avatar || "");
   const [saved, setSaved] = useState(false);
@@ -220,6 +225,10 @@ export default function PlayerProfilePage({
           )}
         </div>
       </section>
+
+      {!isPublic && onRespondToInvite && (
+        <PendingClubInvites invites={pendingInvites} onRespond={onRespondToInvite} />
+      )}
 
       <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_260px]">
         <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-5">
