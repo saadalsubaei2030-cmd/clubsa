@@ -12,7 +12,6 @@ import PlayerProfilePage from "@/components/PlayerProfilePage";
 import ClubProfilePage from "@/components/ClubProfilePage";
 import LoginModal from "@/components/LoginModal";
 import WelcomeModal from "@/components/WelcomeModal";
-import ClubSettingsModal from "@/components/ClubSettingsModal";
 import ConsentBanner from "@/components/ConsentBanner";
 import Footer from "@/components/Footer";
 import LegalModal from "@/components/LegalModal";
@@ -61,7 +60,6 @@ export default function App() {
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);
   const [loginMode, setLoginMode] = useState<"login" | "register">("login");
-  const [clubSettingsOpen, setClubSettingsOpen] = useState(false);
   const [legalPage, setLegalPage] = useState<LegalPage | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const initialClubRoute = getClubIdFromPath();
@@ -139,15 +137,6 @@ export default function App() {
 
   const handleRequireLogin = () => { setLoginMode("login"); setLoginOpen(true); };
 
-  const handleClubSettingsSave = (updates: { clubLogo?: string; clubColors?: { primary: string; secondary: string } }) => {
-    if (!auth) return;
-    setUser({
-      ...auth,
-      clubLogo: updates.clubLogo ?? auth.clubLogo,
-      clubColors: updates.clubColors ?? auth.clubColors,
-    });
-  };
-
   if (loading) {
     return (
       <div dir="rtl" className="min-h-screen w-full bg-slate-950 text-slate-100 flex items-center justify-center" style={{ fontFamily: "Tajawal, sans-serif" }}>
@@ -167,7 +156,6 @@ export default function App() {
         auth={auth}
         onOpenLogin={() => { setLoginMode("login"); setLoginOpen(true); }}
         onLogout={handleLogout}
-        onOpenClubSettings={() => setClubSettingsOpen(true)}
         onOpenProfile={() => setProfileOpen(true)}
         pendingInviteCount={pendingInvites.length}
         onOpenInvites={() => setInvitesOpen(true)}
@@ -206,6 +194,7 @@ export default function App() {
             onSaveProfile={(updates) => saveProfileSettings(auth.id, updates)}
               pendingInvites={pendingInvites}
               onRespondToInvite={handleRespondToInvite}
+              onOpenInvitePlayer={() => setInvitePlayerOpen(true)}
              onOpenClub={openClubProfile}
             onOpenCalculator={() => { setProfileOpen(false); setTab("calculator"); }}
           />
@@ -264,9 +253,6 @@ export default function App() {
           onClose={() => setInvitePlayerOpen(false)}
           onInviteSent={() => setInviteRefresh((value) => value + 1)}
         />
-      )}
-      {clubSettingsOpen && auth && auth.role === "president" && (
-        <ClubSettingsModal auth={auth} onClose={() => setClubSettingsOpen(false)} onSave={handleClubSettingsSave} />
       )}
       {legalPage && <LegalModal page={legalPage} onClose={() => setLegalPage(null)} />}
       <ConsentBanner onOpenLegal={openLegal} />

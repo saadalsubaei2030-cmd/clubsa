@@ -1,4 +1,4 @@
-import { Bell, User, LogOut, Settings, Shield, Wallet } from "lucide-react";
+import { Bell, User, LogOut, Shield, Wallet } from "lucide-react";
 import { ROLE_LABELS, TABS } from "@/data";
 import type { TabId, AuthUser } from "@/types";
 import { formatBalance } from "@/lib/formatters";
@@ -10,14 +10,13 @@ function formatAmount(n: number): string {
 }
 
 export default function Navbar({
-  active, onChange, auth, onOpenLogin, onLogout, onOpenClubSettings, onOpenProfile, pendingInviteCount, onOpenInvites,
+  active, onChange, auth, onOpenLogin, onLogout, onOpenProfile, pendingInviteCount, onOpenInvites,
 }: {
   active: TabId;
   onChange: (tab: TabId) => void;
   auth: AuthUser | null;
   onOpenLogin: () => void;
   onLogout: () => void;
-  onOpenClubSettings?: () => void;
   onOpenProfile?: () => void;
   pendingInviteCount?: number;
   onOpenInvites?: () => void;
@@ -57,16 +56,6 @@ export default function Navbar({
                 )}
               </button>
             )}
-            {auth.role === "president" && (
-              <button
-                onClick={onOpenClubSettings}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-blue-400 hover:bg-slate-800 transition-colors"
-                title="إعدادات النادي"
-              >
-                <Settings size={16} />
-              </button>
-            )}
-
             {auth.role === "president" && auth.budget !== undefined && (
               <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20" title="ميزانية النادي">
                 <Wallet size={13} className="text-amber-400" />

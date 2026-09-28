@@ -5,6 +5,7 @@ import { formatBalance } from "@/lib/formatters";
 import { getProfilePath } from "@/lib/mockData";
 import type { AuthUser, ClubInvite, PlayerBuild } from "@/types";
 import PendingClubInvites from "@/components/PendingClubInvites";
+import ClubRosterSection from "@/components/ClubRosterSection";
 
 const STAT_KEYS = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"] as const;
 const STAT_LABELS: Record<string, string> = {
@@ -30,6 +31,7 @@ export default function PlayerProfilePage({
   onInviteToClub,
   pendingInvites = [],
   onRespondToInvite,
+  onOpenInvitePlayer,
 }: {
   auth: AuthUser;
   onBack: () => void;
@@ -44,6 +46,7 @@ export default function PlayerProfilePage({
   onInviteToClub?: () => void;
   pendingInvites?: ClubInvite[];
   onRespondToInvite?: (inviteId: string, status: "accepted" | "declined") => void;
+  onOpenInvitePlayer?: () => void;
 }) {
   const [avatar, setAvatar] = useState(auth.avatar || "");
   const [saved, setSaved] = useState(false);
@@ -225,6 +228,14 @@ export default function PlayerProfilePage({
           )}
         </div>
       </section>
+
+      {!isPublic && auth.clubId && (
+        <ClubRosterSection
+          clubId={auth.clubId}
+          viewer={auth}
+          onOpenInvitePlayer={onOpenInvitePlayer}
+        />
+      )}
 
       {!isPublic && onRespondToInvite && (
         <PendingClubInvites invites={pendingInvites} onRespond={onRespondToInvite} />
