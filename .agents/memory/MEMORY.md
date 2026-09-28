@@ -1,1 +1,2 @@
 - [CLUBSA feature source of truth](clubsa-feature-storage.md) — the current UI uses its existing browser-persistent store; API/database sync remains a separate follow-up.
+- [Cloudflare build compatibility](cloudflare-build-compatibility.md) — deploy CLUBSA from a static Vite build with standard package versions, not pnpm catalog or workspace protocols.
