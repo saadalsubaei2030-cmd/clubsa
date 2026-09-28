@@ -14,9 +14,11 @@
     "scripts"
   ],
   "scripts": {
-    "build": "node ./artifacts/clubsa/scripts/build-cloudflare.mjs",
-    "build:clubsa": "node ./artifacts/clubsa/scripts/build-cloudflare.mjs",
-    "build:workspace": "pnpm run typecheck && pnpm -r --if-present run build",
+    "scripts": {
+      "build": "node ./artifacts/clubsa/scripts/build-cloudflare.mjs",
+      "build:clubsa": "node ./artifacts/clubsa/scripts/build-cloudflare.mjs",
+      "build:workspace": "pnpm run typecheck && pnpm -r --if-present run build",
+      "typecheck:libs": "tsc --build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
