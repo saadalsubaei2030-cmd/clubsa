@@ -9,11 +9,85 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface SocialUser {
+  id: string;
+  username: string;
+  name: string;
+  /** @nullable */
+  avatar: string | null;
+}
+
+export type UserSearchResultRelationshipStatus = typeof UserSearchResultRelationshipStatus[keyof typeof UserSearchResultRelationshipStatus];
+
+
+export const UserSearchResultRelationshipStatus = {
+  none: 'none',
+  incoming: 'incoming',
+  outgoing: 'outgoing',
+  accepted: 'accepted',
+} as const;
+
+export type UserSearchResult = SocialUser & {
+  relationshipStatus: UserSearchResultRelationshipStatus;
+};
+
+export interface UserSearchResponse {
+  users: UserSearchResult[];
+}
+
+export interface FriendsResponse {
+  friends: SocialUser[];
+  incomingRequests: SocialUser[];
+  outgoingRequests: SocialUser[];
+}
+
+export type FriendshipActionResponseStatus = typeof FriendshipActionResponseStatus[keyof typeof FriendshipActionResponseStatus];
+
+
+export const FriendshipActionResponseStatus = {
+  pending: 'pending',
+  accepted: 'accepted',
+} as const;
+
+export interface FriendshipActionResponse {
+  status: FriendshipActionResponseStatus;
+}
+
+export interface PrivateMessageInput {
+  /**
+     * @minLength 1
+     * @maxLength 255
+     */
+  receiverId: string;
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  content: string;
+}
+
+export interface PrivateMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface PrivateMessageResponse {
+  message: PrivateMessage;
+}
+
+export interface PrivateMessagesResponse {
+  messages: PrivateMessage[];
+}
+
 export type ProfileInputRole = typeof ProfileInputRole[keyof typeof ProfileInputRole];
 
 
 export const ProfileInputRole = {
   president: 'president',
+  scout: 'scout',
   player: 'player',
 } as const;
 
@@ -76,6 +150,7 @@ export type ProfileResponseRole = typeof ProfileResponseRole[keyof typeof Profil
 
 export const ProfileResponseRole = {
   president: 'president',
+  scout: 'scout',
   player: 'player',
 } as const;
 
@@ -132,6 +207,7 @@ export type PublicProfileRole = typeof PublicProfileRole[keyof typeof PublicProf
 
 export const PublicProfileRole = {
   president: 'president',
+  scout: 'scout',
   player: 'player',
 } as const;
 
@@ -329,6 +405,14 @@ export interface MarketListing {
 export type SearchPlayersParams = {
 /**
  * @minLength 2
+ */
+q: string;
+};
+
+export type SearchUsersParams = {
+/**
+ * @minLength 2
+ * @maxLength 24
  */
 q: string;
 };

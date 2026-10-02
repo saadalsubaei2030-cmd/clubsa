@@ -43,7 +43,7 @@ export default function WelcomeModal({ onClose, onSelect }: { onClose: () => voi
             </div>
             <div>
               <p className="text-sm font-bold text-slate-100">إنشاء حساب جديد</p>
-              <p className="text-[11px] text-slate-500">انضم كمشرف نادي أو لاعب</p>
+              <p className="text-[11px] text-slate-500">انضم كلاعب أو كشاف أو رئيس نادٍ</p>
             </div>
           </button>
 

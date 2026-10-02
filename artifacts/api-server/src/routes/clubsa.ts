@@ -293,8 +293,20 @@ router.post("/me", requireAuth(), async (req, res): Promise<void> => {
         : [];
       let clubId: string | null = null;
       let joinStatus: "approved" | "pending" =
-        data.role === "president" || data.isFreeAgent ? "approved" : "pending";
-      if (data.role === "player" && data.clubName && !data.isFreeAgent) {
+        data.role === "president" ||
+        data.role === "scout" ||
+        (data.role === "player" && data.isFreeAgent)
+          ? "approved"
+          : "pending";
+      if (data.role === "scout" && data.clubName) {
+        const [club] = await tx
+          .select({ id: clubsTable.id })
+          .from(clubsTable)
+          .where(eq(clubsTable.name, data.clubName.trim()))
+          .limit(1);
+        if (!club) throw new Error("CLUB_NOT_FOUND");
+        clubId = club.id;
+      } else if (data.role === "player" && data.clubName && !data.isFreeAgent) {
         const [club] = await tx
           .select({ id: clubsTable.id })
           .from(clubsTable)
@@ -343,7 +355,11 @@ router.post("/me", requireAuth(), async (req, res): Promise<void> => {
       } else if (clubId) {
         await tx
           .insert(clubMembersTable)
-          .values({ clubId, userId: current.id, role: "player" });
+          .values({
+            clubId,
+            userId: current.id,
+            role: data.role === "scout" ? "admin" : "player",
+          });
       }
       if (referrer && referrer.id !== current.id) {
         await tx
@@ -1061,12 +1077,12 @@ router.get("/market/listings", async (_req, res): Promise<void> => {
 router.get("/clubs", async (_req, res) => {
   const allClubs = await db
     .select({
-      id: clubTable.id,
-      name: clubTable.name,
-      logo: clubTable.logo,
-      region: clubTable.region,
+      id: clubsTable.id,
+      name: clubsTable.name,
+      logo: clubsTable.logo,
+      region: clubsTable.region,
     })
-    .from(clubTable);
+    .from(clubsTable);
   res.json(allClubs);
 });
 

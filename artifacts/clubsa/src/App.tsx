@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import { useGoogleFonts } from "@/hooks/useGoogleFonts";
 import { useAuth } from "@/hooks/useAuth";
 import Navbar from "@/components/Navbar";
@@ -10,7 +11,7 @@ import NewsPage from "@/components/NewsPage";
 import LeaderboardsPage from "@/components/LeaderboardsPage";
 import PlayerProfilePage from "@/components/PlayerProfilePage";
 import ClubProfilePage from "@/components/ClubProfilePage";
-import LoginModal from "@/components/LoginModal";
+import ProfileOnboarding from "@/components/ProfileOnboarding";
 import WelcomeModal from "@/components/WelcomeModal";
 import ConsentBanner from "@/components/ConsentBanner";
 import Footer from "@/components/Footer";
@@ -55,11 +56,23 @@ function getAppHomePath(): string {
 
 export default function App() {
   useGoogleFonts();
-  const { user: auth, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, saveProfileSettings, setUser, fetchProfile } = useAuth();
+  const {
+    user: auth,
+    clerkUser,
+    loading,
+    isSignedIn,
+    profileError,
+    profileNotFound,
+    creatingProfile,
+    createProfile,
+    signOut,
+    saveAvatar,
+    saveBuild,
+    saveProfileSettings,
+  } = useAuth();
+  const [, setLocation] = useLocation();
   const [tab, setTab] = useState<TabId>("calculator");
   const [welcomeOpen, setWelcomeOpen] = useState(true);
-  const [loginOpen, setLoginOpen] = useState(false);
-  const [loginMode, setLoginMode] = useState<"login" | "register">("login");
   const [legalPage, setLegalPage] = useState<LegalPage | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const initialClubRoute = getClubIdFromPath();
@@ -113,15 +126,11 @@ export default function App() {
   const handleRespondToInvite = (inviteId: string, status: "accepted" | "declined") => {
     if (!auth) return;
     if (!respondToClubInvite(inviteId, auth.id, status)) return;
-    if (status === "accepted") {
-      const refreshedUser = fetchProfile(auth.id);
-      if (refreshedUser) setUser(refreshedUser);
-    }
     setInviteRefresh((value) => value + 1);
   };
 
   const handleLogout = () => {
-    signOut();
+    void signOut();
     setProfileOpen(false);
     setClubPathOpen(false);
     setClubProfileId(null);
@@ -131,11 +140,11 @@ export default function App() {
 
   const handleWelcomeSelect = (action: "login" | "register" | "guest") => {
     setWelcomeOpen(false);
-    if (action === "login") { setLoginMode("login"); setLoginOpen(true); }
-    else if (action === "register") { setLoginMode("register"); setLoginOpen(true); }
+    if (action === "login") setLocation("/sign-in");
+    else if (action === "register") setLocation("/sign-up");
   };
 
-  const handleRequireLogin = () => { setLoginMode("login"); setLoginOpen(true); };
+  const handleRequireLogin = () => setLocation("/sign-in");
 
   if (loading) {
     return (
@@ -148,13 +157,34 @@ export default function App() {
     );
   }
 
+  if (isSignedIn && profileError && !profileNotFound) {
+    return (
+      <div dir="rtl" className="flex min-h-screen items-center justify-center bg-slate-950 px-4 text-slate-100" style={{ fontFamily: "Tajawal, sans-serif" }}>
+        <div className="max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center">
+          <h1 className="text-lg font-extrabold text-white">تعذر تحميل ملف CLUBSA</h1>
+          <p className="mt-2 text-sm leading-6 text-slate-400">
+            تحقق من اتصال الخدمة ثم أعد تحميل الصفحة، أو سجّل الخروج وحاول مرة أخرى.
+          </p>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-blue-500"
+            data-testid="button-profile-load-sign-out"
+          >
+            تسجيل الخروج
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div dir="rtl" className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col" style={{ fontFamily: "Tajawal, sans-serif" }}>
       <Navbar
         active={tab}
         onChange={setTab}
         auth={auth}
-        onOpenLogin={() => { setLoginMode("login"); setLoginOpen(true); }}
+        onOpenLogin={() => setLocation("/sign-in")}
         onLogout={handleLogout}
         onOpenProfile={() => setProfileOpen(true)}
         pendingInviteCount={pendingInvites.length}
@@ -228,16 +258,28 @@ export default function App() {
 
       <Footer onOpenLegal={openLegal} />
 
-      {welcomeOpen && !auth && !publicProfileSlug && !clubPathOpen && (
+      {welcomeOpen && !auth && !isSignedIn && !publicProfileSlug && !clubPathOpen && (
         <WelcomeModal onClose={() => setWelcomeOpen(false)} onSelect={handleWelcomeSelect} />
       )}
-      {loginOpen && (
-        <LoginModal
-          onClose={() => setLoginOpen(false)}
-          onSignUp={signUp}
-          onSignIn={signIn}
-          onCompleteProfile={completeProfile}
-          initialMode={loginMode}
+      {isSignedIn && profileNotFound && (
+        <ProfileOnboarding
+          email={
+            clerkUser?.primaryEmailAddress?.emailAddress ??
+            clerkUser?.emailAddresses[0]?.emailAddress ??
+            ""
+          }
+          suggestedName={
+            clerkUser?.fullName ??
+            [clerkUser?.firstName, clerkUser?.lastName].filter(Boolean).join(" ")
+          }
+          suggestedUsername={
+            clerkUser?.username ??
+            clerkUser?.primaryEmailAddress?.emailAddress.split("@")[0] ??
+            ""
+          }
+          submitting={creatingProfile}
+          onSubmitProfile={createProfile}
+          onSignOut={handleLogout}
         />
       )}
       {invitesOpen && auth && (

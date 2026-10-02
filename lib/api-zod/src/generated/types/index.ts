@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './friendshipActionResponse';
+export * from './friendshipActionResponseStatus';
+export * from './friendsResponse';
 export * from './healthStatus';
 export * from './invitation';
 export * from './invitationCreated';
@@ -19,6 +22,10 @@ export * from './invitationStatus';
 export * from './marketListing';
 export * from './meResponse';
 export * from './playerSearchResult';
+export * from './privateMessage';
+export * from './privateMessageInput';
+export * from './privateMessageResponse';
+export * from './privateMessagesResponse';
 export * from './profileInput';
 export * from './profileInputRole';
 export * from './profileResponse';
@@ -31,9 +38,14 @@ export * from './publicProfileRole';
 export * from './referralDashboard';
 export * from './referralReward';
 export * from './searchPlayersParams';
+export * from './searchUsersParams';
+export * from './socialUser';
 export * from './squadAssignment';
 export * from './squadInput';
 export * from './squadInputAssignment';
 export * from './squadInputFormation';
 export * from './squadResponse';
 export * from './squadResponseFormation';
+export * from './userSearchResponse';
+export * from './userSearchResult';
+export * from './userSearchResultRelationshipStatus';

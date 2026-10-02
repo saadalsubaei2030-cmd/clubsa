@@ -123,6 +123,145 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PlayerSearchResult"
+  /users/search:
+    get:
+      operationId: searchUsers
+      tags: [profiles]
+      summary: Search CLUBSA users by username
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 24
+      responses:
+        "200":
+          description: Matching users and their relationship status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSearchResponse"
+        "401":
+          description: Sign in required
+  /friends:
+    get:
+      operationId: getFriends
+      tags: [friends]
+      summary: List friends and pending friend requests for the current user
+      responses:
+        "200":
+          description: Friends and pending requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendsResponse"
+        "401":
+          description: Sign in required
+  /friends/{userId}:
+    post:
+      operationId: createFriendRequest
+      tags: [friends]
+      summary: Send a friend request
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "201":
+          description: Friend request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendshipActionResponse"
+        "401":
+          description: Sign in required
+        "409":
+          description: A relationship or pending request already exists
+    delete:
+      operationId: deleteFriend
+      tags: [friends]
+      summary: Remove a friend or cancel a pending request
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Relationship removed
+        "401":
+          description: Sign in required
+        "404":
+          description: Relationship not found
+  /friends/{userId}/accept:
+    post:
+      operationId: acceptFriendRequest
+      tags: [friends]
+      summary: Accept an incoming friend request
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Friend request accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FriendshipActionResponse"
+        "401":
+          description: Sign in required
+        "404":
+          description: Incoming request not found
+  /messages/private:
+    post:
+      operationId: sendPrivateMessage
+      tags: [messages]
+      summary: Send a private message to an accepted friend
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PrivateMessageInput"
+      responses:
+        "201":
+          description: Private message sent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateMessageResponse"
+        "400":
+          description: Invalid message
+        "401":
+          description: Sign in required
+        "403":
+          description: Messages can only be sent to accepted friends
+  /messages/private/{userId}:
+    get:
+      operationId: getPrivateMessages
+      tags: [messages]
+      summary: Get the private conversation with an accepted friend
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Conversation messages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PrivateMessagesResponse"
+        "401":
+          description: Sign in required
+        "403":
+          description: Conversation is only available with accepted friends
   /me/invitations:
     get:
       operationId: getMyInvitations
@@ -328,6 +467,75 @@ components:
         status:
           type: string
       required: [status]
+    SocialUser:
+      type: object
+      properties:
+        id: { type: string }
+        username: { type: string }
+        name: { type: string }
+        avatar: { type: ["string", "null"] }
+      required: [id, username, name, avatar]
+    UserSearchResult:
+      allOf:
+        - $ref: "#/components/schemas/SocialUser"
+        - type: object
+          properties:
+            relationshipStatus:
+              type: string
+              enum: [none, incoming, outgoing, accepted]
+          required: [relationshipStatus]
+    UserSearchResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items: { $ref: "#/components/schemas/UserSearchResult" }
+      required: [users]
+    FriendsResponse:
+      type: object
+      properties:
+        friends:
+          type: array
+          items: { $ref: "#/components/schemas/SocialUser" }
+        incomingRequests:
+          type: array
+          items: { $ref: "#/components/schemas/SocialUser" }
+        outgoingRequests:
+          type: array
+          items: { $ref: "#/components/schemas/SocialUser" }
+      required: [friends, incomingRequests, outgoingRequests]
+    FriendshipActionResponse:
+      type: object
+      properties:
+        status: { type: string, enum: [pending, accepted] }
+      required: [status]
+    PrivateMessageInput:
+      type: object
+      properties:
+        receiverId: { type: string, minLength: 1, maxLength: 255 }
+        content: { type: string, minLength: 1, maxLength: 4000 }
+      required: [receiverId, content]
+    PrivateMessage:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        senderId: { type: string }
+        receiverId: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, senderId, receiverId, content, createdAt]
+    PrivateMessageResponse:
+      type: object
+      properties:
+        message: { $ref: "#/components/schemas/PrivateMessage" }
+      required: [message]
+    PrivateMessagesResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/PrivateMessage" }
+      required: [messages]
     ProfileInput:
       type: object
       properties:
@@ -342,7 +550,7 @@ components:
           maxLength: 60
         role:
           type: string
-          enum: [president, player]
+          enum: [president, scout, player]
         region:
           type: string
           minLength: 1
@@ -384,7 +592,7 @@ components:
         name: { type: string }
         email: { type: string, format: email }
         emailVerified: { type: boolean }
-        role: { type: string, enum: [president, player] }
+        role: { type: string, enum: [president, scout, player] }
         region: { type: string }
         eaId: { type: string }
         isFreeAgent: { type: boolean }
@@ -419,7 +627,7 @@ components:
         name: { type: string }
         region: { type: string }
         eaId: { type: string }
-        role: { type: string, enum: [president, player] }
+        role: { type: string, enum: [president, scout, player] }
         clubId: { type: ["string", "null"] }
         clubName: { type: ["string", "null"] }
         position: { type: ["string", "null"] }

@@ -11,5 +11,6 @@ export type PublicProfileRole = typeof PublicProfileRole[keyof typeof PublicProf
 
 export const PublicProfileRole = {
   president: 'president',
+  scout: 'scout',
   player: 'player',
 } as const;

@@ -11,5 +11,6 @@ export type ProfileInputRole = typeof ProfileInputRole[keyof typeof ProfileInput
 
 export const ProfileInputRole = {
   president: 'president',
+  scout: 'scout',
   player: 'player',
 } as const;

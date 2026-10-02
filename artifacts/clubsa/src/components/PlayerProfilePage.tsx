@@ -37,7 +37,7 @@ export default function PlayerProfilePage({
   onBack: () => void;
   onSaveAvatar: (avatar: string | null) => void;
   onSaveBuild: (build: PlayerBuild) => void;
-  onSaveProfile?: (updates: { eaId: string; region: string }) => void;
+  onSaveProfile?: (updates: { eaId: string; region: string }) => void | Promise<void>;
   onOpenClub: (clubId: string) => void;
   onOpenCalculator: () => void;
   isPublic?: boolean;
@@ -62,10 +62,27 @@ export default function PlayerProfilePage({
   const [manualPlayStyles, setManualPlayStyles] = useState<string[]>(build?.playStyles || []);
   const [buildSaved, setBuildSaved] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
   const [copiedReferral, setCopiedReferral] = useState(false);
   const [profileEaId, setProfileEaId] = useState(auth.eaId || "");
 
   const clampRating = (value: number) => Math.max(0, Math.min(99, Number.isFinite(value) ? value : 0));
+
+  const handleSaveProfile = async () => {
+    if (!onSaveProfile || profileEaId.trim().length < 3 || savingProfile) return;
+    setSavingProfile(true);
+    setProfileSaveError("");
+    try {
+      await onSaveProfile({ eaId: profileEaId.trim(), region: auth.region });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 1800);
+    } catch {
+      setProfileSaveError("تعذر حفظ بيانات الحساب. تحقق من الاتصال وحاول مرة أخرى.");
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleManualStatChange = (key: string, value: string) => {
     setManualStats((current) => ({ ...current, [key]: clampRating(Number(value) || 0) }));
@@ -421,21 +438,19 @@ export default function PlayerProfilePage({
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      if (profileEaId.trim().length < 3) return;
-                      onSaveProfile({ eaId: profileEaId.trim(), region: auth.region });
-                      setProfileSaved(true);
-                      setTimeout(() => setProfileSaved(false), 1800);
-                    }}
-                    className="rounded-lg bg-cyan-500 px-2.5 py-1.5 text-xs font-extrabold text-slate-950 hover:bg-cyan-400"
+                    onClick={() => void handleSaveProfile()}
+                    disabled={profileEaId.trim().length < 3 || savingProfile}
+                    className="rounded-lg bg-cyan-500 px-2.5 py-1.5 text-xs font-extrabold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+                    data-testid="button-save-profile-settings"
                   >
-                    حفظ
+                    {savingProfile ? "جارٍ الحفظ..." : "حفظ"}
                   </button>
                 </div>
               ) : (
                 <p className="font-bold text-cyan-300">{auth.eaId || "غير محدد"}</p>
               )}
               {profileSaved && <p className="mt-1 text-[11px] font-bold text-emerald-300">تم حفظ EA ID</p>}
+              {profileSaveError && <p className="mt-1 text-[11px] font-bold text-red-300" role="alert">{profileSaveError}</p>}
             </div>
             <div><p className="text-[11px] text-slate-500">المنطقة</p><p className="font-bold text-slate-200">{auth.region || "غير محددة"}</p></div>
             <div><p className="text-[11px] text-slate-500">الحالة</p><p className="font-bold text-emerald-300">{auth.joinStatus === "pending" ? "بانتظار الموافقة" : "نشط"}</p></div>

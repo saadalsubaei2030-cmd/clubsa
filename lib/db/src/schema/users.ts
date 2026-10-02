@@ -2,7 +2,7 @@ import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, boolean }
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export type ProfileRole = "president" | "player";
+export type ProfileRole = "president" | "scout" | "player";
 export type JoinStatus = "approved" | "pending" | "rejected";
 
 export const usersTable = pgTable(

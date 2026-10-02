@@ -3,8 +3,8 @@ name: CLUBSA feature storage
 description: Storage boundary for CLUBSA invitations, squads, profiles, referrals, and wallet features
 ---
 
-The current CLUBSA screens use the existing browser-persistent store as their working source of truth for the core feature flows. The protected API and Drizzle schema are separate infrastructure until the app is explicitly migrated to API-backed reads and writes.
+Clerk is the account identity provider. A new Clerk account must create a CLUBSA profile before using profile-dependent features; existing browser-local passwords and accounts cannot be transferred automatically. Friend search, requests, friend lists, and private messages use the authenticated API and PostgreSQL. Other legacy flows—including invitations, squads, referral credits, wallet display, and player builds—still use browser-local storage and have not been migrated.
 
-**Why:** The existing app was already structured around local persistence, while the database began empty. Keeping the feature UI on one consistent store avoided a split-brain experience during the core feature pass.
+**Why:** The user chose a unified Clerk sign-in, and friends/private messaging need shared cross-session storage. Migrating unrelated legacy flows together avoids presenting local-only state as globally synchronized.
 
-**How to apply:** When moving these features to server persistence, migrate the whole flow together—auth/profile loading, invitations, squad assignments, referral credits, and wallet display—rather than mixing local reads with server writes.
+**How to apply:** Use Clerk same-site session cookies for authenticated API calls, not bearer tokens. Do not claim old browser accounts can be imported. Keep remaining local features clearly separate; when migrating them, move each complete flow (reads, writes, auth/profile loading, and UI) to the API together.
