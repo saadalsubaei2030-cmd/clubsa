@@ -117,6 +117,7 @@ function SignInPage() {
         routing="path"
         path={`${basePath}/sign-in`}
         signUpUrl={`${basePath}/sign-up`}
+        appearance={clerkAppearance}
       />
     </AuthShell>
   );
@@ -133,6 +134,7 @@ function SignUpPage() {
         routing="path"
         path={`${basePath}/sign-up`}
         signInUrl={`${basePath}/sign-in`}
+        appearance={clerkAppearance}
       />
     </AuthShell>
   );
@@ -170,6 +172,9 @@ function ClerkRoutes() {
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
       localization={{
+        formFieldLabel__emailAddress: "البريد الإلكتروني",
+        formFieldLabel__password: "كلمة المرور",
+        formButtonPrimary: "متابعة",
         signIn: {
           start: {
             title: "تسجيل الدخول",
