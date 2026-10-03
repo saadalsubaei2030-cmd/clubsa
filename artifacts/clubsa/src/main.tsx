@@ -170,15 +170,19 @@ function ClerkRoutes() {
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
       localization={{
+        locale: "ar-SA",
+        formFieldLabel__emailAddress: "البريد الإلكتروني",
+        formFieldLabel__password: "كلمة المرور",
+        formButtonPrimary: "متابعة",
         signIn: {
           start: {
-            title: "تسجيل الدخول",
-            subtitle: "سجّل دخولك إلى حسابك في CLUBSA",
+            title: "تسجيل الدخول إلى CLUBSA",
+            subtitle: "أدخل لحسابك وابدأ التواصل مع اللاعبين",
           },
         },
         signUp: {
           start: {
-            title: "إنشاء حساب جديد",
+            title: "إنشاء حساب جديد في CLUBSA",
             subtitle: "أنشئ حسابك للعثور على لاعبين والتواصل معهم",
           },
         },
