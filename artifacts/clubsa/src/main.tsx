@@ -1,11 +1,12 @@
 import { StrictMode, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { ClerkProvider, SignIn, SignUp, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, useClerk } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Link, Route, Router as WouterRouter, Switch, useLocation } from "wouter";
 import App from "./App.tsx";
+import SignUpWizard from "./components/SignUpWizard";
 import { queryClient } from "./lib/queryClient";
 import "./index.css";
 
@@ -124,20 +125,7 @@ function SignInPage() {
 }
 
 function SignUpPage() {
-  return (
-    <AuthShell
-      switchText="لديك حساب؟"
-      switchLabel="تسجيل الدخول"
-      switchHref="/sign-in"
-    >
-      <SignUp
-        routing="path"
-        path={`${basePath}/sign-up`}
-        signInUrl={`${basePath}/sign-in`}
-        appearance={clerkAppearance}
-      />
-    </AuthShell>
-  );
+  return <SignUpWizard />;
 }
 
 function ClerkQueryClientCacheInvalidator() {
@@ -172,18 +160,19 @@ function ClerkRoutes() {
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
       localization={{
+        locale: "ar-SA",
         formFieldLabel__emailAddress: "البريد الإلكتروني",
         formFieldLabel__password: "كلمة المرور",
         formButtonPrimary: "متابعة",
         signIn: {
           start: {
-            title: "تسجيل الدخول",
-            subtitle: "سجّل دخولك إلى حسابك في CLUBSA",
+            title: "تسجيل الدخول إلى CLUBSA",
+            subtitle: "أدخل لحسابك وابدأ التواصل مع اللاعبين",
           },
         },
         signUp: {
           start: {
-            title: "إنشاء حساب جديد",
+            title: "إنشاء حساب جديد في CLUBSA",
             subtitle: "أنشئ حسابك للعثور على لاعبين والتواصل معهم",
           },
         },
