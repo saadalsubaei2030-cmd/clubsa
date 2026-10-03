@@ -1,11 +1,12 @@
 import { StrictMode, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { ClerkProvider, SignIn, SignUp, useClerk } from "@clerk/react";
+import { ClerkProvider, SignIn, useClerk } from "@clerk/react";
 import { shadcn } from "@clerk/themes";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Link, Route, Router as WouterRouter, Switch, useLocation } from "wouter";
 import App from "./App.tsx";
+import SignUpWizard from "./components/SignUpWizard";
 import { queryClient } from "./lib/queryClient";
 import "./index.css";
 
@@ -123,19 +124,7 @@ function SignInPage() {
 }
 
 function SignUpPage() {
-  return (
-    <AuthShell
-      switchText="لديك حساب؟"
-      switchLabel="تسجيل الدخول"
-      switchHref="/sign-in"
-    >
-      <SignUp
-        routing="path"
-        path={`${basePath}/sign-up`}
-        signInUrl={`${basePath}/sign-in`}
-      />
-    </AuthShell>
-  );
+  return <SignUpWizard />;
 }
 
 function ClerkQueryClientCacheInvalidator() {
