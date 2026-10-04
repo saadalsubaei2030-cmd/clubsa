@@ -1,51 +1,527 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1"
-    />
-    <title>CLUBSA</title>
-    <meta
-      name="description"
-      content="CLUBSA - منصة الأندية واللاعبين في EA FC Pro Clubs."
-    />
-    <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="CLUBSA" />
-    <meta
-      property="og:description"
-      content="CLUBSA - منصة الأندية واللاعبين في EA FC Pro Clubs."
-    />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="CLUBSA" />
-    <meta
-      name="twitter:description"
-      content="CLUBSA - منصة الأندية واللاعبين في EA FC Pro Clubs."
-    />
-    <link
-      rel="icon"
-      type="image/jpeg"
-      href="/Gemini_Generated_Image_4zy594zy594zy594.jpg"
-    />
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>CLUBSA | تسجيل حساب جديد</title>
+        <!-- خط تجوال العصري -->
+        <link
+            href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            :root {
+                --bg-color: #0b0f19;
+                --card-bg: #111827;
+                --primary: #3b82f6;
+                --primary-hover: #2563eb;
+                --primary-glow: rgba(59, 130, 246, 0.15);
+                --text-main: #f9fafb;
+                --text-muted: #9ca3af;
+                --border: #1f2937;
+                --danger: #ef4444;
+                --info-bg: rgba(59, 130, 246, 0.08);
+                --info-border: rgba(59, 130, 246, 0.3);
+            }
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+                font-family: "Tajawal", sans-serif;
+            }
 
-    <!-- Google AdSense -->
-    <script
-      async
-      src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8607384594603321"
-      crossorigin="anonymous"
-    ></script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+            body {
+                background-color: var(--bg-color);
+                color: var(--text-main);
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                padding: 20px;
+            }
+
+            .auth-card {
+                background: var(--card-bg);
+                border: 1px solid var(--border);
+                border-radius: 16px;
+                width: 100%;
+                max-width: 480px;
+                padding: 35px 30px;
+                box-shadow: 0 12px 35px rgba(0, 0, 0, 0.45);
+            }
+
+            .logo {
+                text-align: center;
+                font-size: 32px;
+                font-weight: 800;
+                letter-spacing: 2px;
+                color: var(--primary);
+                margin-bottom: 25px;
+            }
+
+            /* شريط تقدم الخطوات */
+            .steps-progress {
+                display: flex;
+                justify-content: space-between;
+                position: relative;
+                margin-bottom: 30px;
+            }
+
+            .steps-progress::before {
+                content: "";
+                position: absolute;
+                top: 50%;
+                left: 0;
+                right: 0;
+                transform: translateY(-50%);
+                height: 2px;
+                background: var(--border);
+                z-index: 1;
+            }
+
+            .step-circle {
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: var(--card-bg);
+                border: 2px solid var(--border);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-weight: 700;
+                color: var(--text-muted);
+                position: relative;
+                z-index: 2;
+                transition: 0.3s;
+            }
+
+            .step-circle.active {
+                border-color: var(--primary);
+                color: #ffffff;
+                background: var(--primary);
+                box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+            }
+
+            .step-circle.completed {
+                background: var(--primary);
+                color: #ffffff;
+                border-color: var(--primary);
+            }
+
+            /* تنسيق الحقول */
+            .form-group {
+                margin-bottom: 18px;
+                text-align: right;
+            }
+
+            .form-group label {
+                display: block;
+                font-size: 13px;
+                margin-bottom: 8px;
+                color: var(--text-muted);
+                font-weight: 500;
+            }
+
+            .form-control {
+                width: 100%;
+                padding: 13px 15px;
+                border-radius: 8px;
+                border: 1px solid var(--border);
+                background: #0b0f19;
+                color: #fff;
+                font-size: 14px;
+                transition: 0.3s;
+                outline: none;
+            }
+
+            .form-control:focus {
+                border-color: var(--primary);
+                box-shadow: 0 0 0 3px var(--primary-glow);
+            }
+
+            /* اختيار الدور */
+            .role-selector {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+
+            .role-card {
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 14px;
+                text-align: center;
+                cursor: pointer;
+                transition: 0.3s;
+                background: #0b0f19;
+                font-weight: 500;
+                color: var(--text-muted);
+            }
+
+            .role-card:hover {
+                border-color: var(--primary);
+                color: #fff;
+            }
+
+            .role-card.active {
+                border-color: var(--primary);
+                background: var(--primary-glow);
+                color: #fff;
+                font-weight: 700;
+            }
+
+            /* صندوق التنبيه المخصص للاعب */
+            .alert-box {
+                background: var(--info-bg);
+                border: 1px solid var(--info-border);
+                color: #bfdbfe;
+                padding: 12px 14px;
+                border-radius: 8px;
+                font-size: 13px;
+                line-height: 1.6;
+                margin-top: 15px;
+                margin-bottom: 15px;
+            }
+
+            /* الأزرار */
+            .btn {
+                width: 100%;
+                padding: 14px;
+                border-radius: 8px;
+                border: none;
+                background: var(--primary);
+                color: #ffffff;
+                font-size: 15px;
+                font-weight: 700;
+                cursor: pointer;
+                transition: 0.3s;
+                margin-top: 10px;
+            }
+
+            .btn:hover {
+                background: var(--primary-hover);
+            }
+
+            .error-msg {
+                color: var(--danger);
+                font-size: 12px;
+                margin-top: 6px;
+                display: none;
+            }
+
+            .hidden {
+                display: none !important;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="auth-card">
+            <!-- الشعار فقط -->
+            <div class="logo">CLUBSA</div>
+
+            <!-- مؤشر الخطوات -->
+            <div class="steps-progress">
+                <div class="step-circle active" id="step1-ind">1</div>
+                <div class="step-circle" id="step2-ind">2</div>
+            </div>
+
+            <!-- ================= الخطوة الأولى ================= -->
+            <div id="step-1">
+                <div class="form-group">
+                    <label>البريد الإلكتروني (Gmail فقط)</label>
+                    <input
+                        type="email"
+                        id="email"
+                        class="form-control"
+                        placeholder="example@gmail.com"
+                    />
+                    <div class="error-msg" id="email-error">
+                        يجب إدخال بريد Gmail ينتهي حصرياً بـ @gmail.com
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <input
+                        type="password"
+                        id="password"
+                        class="form-control"
+                        placeholder="••••••••"
+                    />
+                    <div class="error-msg" id="password-error">
+                        يجب أن تكون كلمة المرور 6 خانات أو أكثر
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    class="btn"
+                    onclick="validateAndGoToStep2()"
+                >
+                    متابعة
+                </button>
+            </div>
+
+            <!-- ================= الخطوة الثانية ================= -->
+            <div id="step-2" class="hidden">
+                <div class="form-group">
+                    <label>الاسم الكامل</label>
+                    <input
+                        type="text"
+                        id="fullname"
+                        class="form-control"
+                        placeholder="أدخل اسمك"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label>حساب الـ EA</label>
+                    <input
+                        type="text"
+                        id="ea-id"
+                        class="form-control"
+                        placeholder="EA ID الخاص بك"
+                    />
+                </div>
+
+                <div class="form-group">
+                    <label>اختر الدور:</label>
+                    <div class="role-selector">
+                        <div
+                            class="role-card"
+                            id="role-president"
+                            onclick="selectRole('president')"
+                        >
+                            رئيس النادي
+                        </div>
+                        <div
+                            class="role-card"
+                            id="role-player"
+                            onclick="selectRole('player')"
+                        >
+                            لاعب
+                        </div>
+                    </div>
+                </div>
+
+                <!-- حقل خاص برئيس النادي -->
+                <div id="president-fields" class="hidden">
+                    <div class="form-group">
+                        <label>اسم النادي</label>
+                        <input
+                            type="text"
+                            id="president-club-name"
+                            class="form-control"
+                            placeholder="أدخل اسم النادي الرسمي"
+                        />
+                    </div>
+                </div>
+
+                <!-- حقول خاصة باللاعب -->
+                <div id="player-fields" class="hidden">
+                    <div class="form-group">
+                        <label>المركز الأساسي</label>
+                        <select class="form-control" id="position">
+                            <option value="">اختر المركز...</option>
+                            <option value="GK">حارس مرمى (GK)</option>
+                            <option value="CB">قلب دفاع (CB)</option>
+                            <option value="LB_RB">ظهير (LB / RB)</option>
+                            <option value="CDM_CM">
+                                وسط دفاعي / محور (CDM / CM)
+                            </option>
+                            <option value="CAM">صانع ألعاب (CAM)</option>
+                            <option value="LW_RW">جناح (LW / RW)</option>
+                            <option value="ST">مهاجم (ST)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>حالة اللاعب</label>
+                        <select
+                            class="form-control"
+                            id="player-status"
+                            onchange="togglePlayerClubField()"
+                        >
+                            <option value="free">لاعب حر</option>
+                            <option value="signed">بنادي</option>
+                        </select>
+                    </div>
+
+                    <!-- حقل اسم النادي الحالي للاعب (يظهر فقط إذا كان 'بنادي') -->
+                    <div class="form-group hidden" id="player-club-container">
+                        <label>اسم النادي الحالي</label>
+                        <input
+                            type="text"
+                            id="player-club-name"
+                            class="form-control"
+                            placeholder="أدخل اسم النادي الذي تلعب لصالحه حالياً"
+                        />
+                    </div>
+
+                    <!-- تنبيه اللاعب التفاعلي -->
+                    <div class="alert-box" id="player-alert-box">
+                        ℹ️ <strong>تنبيه:</strong> سيتم إرسال طلب انضمامك وربط
+                        حسابك إلى رئيس النادي المعني لمراجعته والموافقة عليه أو
+                        رفضه لتفعيل الحساب بالكامل.
+                    </div>
+                </div>
+
+                <div
+                    class="error-msg"
+                    id="step2-error"
+                    style="margin-bottom: 12px"
+                ></div>
+                <button type="button" class="btn" onclick="submitForm()">
+                    انتهاء
+                </button>
+            </div>
+        </div>
+
+        <script>
+            let currentRole = null;
+
+            // التحقق من الخطوة الأولى
+            function validateAndGoToStep2() {
+                const email = document
+                    .getElementById("email")
+                    .value.trim()
+                    .toLowerCase();
+                const password = document.getElementById("password").value;
+                const emailError = document.getElementById("email-error");
+                const passError = document.getElementById("password-error");
+
+                let isValid = true;
+
+                // التحقق الحصري من نهاية البريد بـ gmail.com
+                const isGmail =
+                    email.endsWith("@gmail.com") && email.length > 10;
+                if (!isGmail) {
+                    emailError.style.display = "block";
+                    isValid = false;
+                } else {
+                    emailError.style.display = "none";
+                }
+
+                // التحقق من طول كلمة المرور (6 خانات فأكثر)
+                if (password.length < 6) {
+                    passError.style.display = "block";
+                    isValid = false;
+                } else {
+                    passError.style.display = "none";
+                }
+
+                if (isValid) {
+                    document.getElementById("step-1").classList.add("hidden");
+                    document
+                        .getElementById("step-2")
+                        .classList.remove("hidden");
+
+                    document
+                        .getElementById("step1-ind")
+                        .classList.replace("active", "completed");
+                    document.getElementById("step1-ind").innerHTML = "✓";
+                    document
+                        .getElementById("step2-ind")
+                        .classList.add("active");
+                }
+            }
+
+            // تحديد الدور والتحكم في ظهور واجهة رئيس النادي / اللاعب
+            function selectRole(role) {
+                currentRole = role;
+                const presCard = document.getElementById("role-president");
+                const playerCard = document.getElementById("role-player");
+                const presFields = document.getElementById("president-fields");
+                const playerFields = document.getElementById("player-fields");
+
+                if (role === "president") {
+                    presCard.classList.add("active");
+                    playerCard.classList.remove("active");
+                    presFields.classList.remove("hidden");
+                    playerFields.classList.add("hidden");
+                } else if (role === "player") {
+                    playerCard.classList.add("active");
+                    presCard.classList.remove("active");
+                    playerFields.classList.remove("hidden");
+                    presFields.classList.add("hidden");
+                    togglePlayerClubField();
+                }
+            }
+
+            // إظهار/إخفاء حقل اسم النادي الحالي حسب حالة اللاعب
+            function togglePlayerClubField() {
+                const status = document.getElementById("player-status").value;
+                const playerClubContainer = document.getElementById(
+                    "player-club-container",
+                );
+
+                if (status === "signed") {
+                    playerClubContainer.classList.remove("hidden");
+                } else {
+                    playerClubContainer.classList.add("hidden");
+                }
+            }
+
+            // التحقق النهائي وإرسال النموذج
+            function submitForm() {
+                const name = document.getElementById("fullname").value.trim();
+                const eaId = document.getElementById("ea-id").value.trim();
+                const step2Error = document.getElementById("step2-error");
+
+                if (!name || !eaId) {
+                    step2Error.innerText =
+                        "يرجى تعبئة الاسم الكامل وحساب الـ EA.";
+                    step2Error.style.display = "block";
+                    return;
+                }
+
+                if (!currentRole) {
+                    step2Error.innerText =
+                        "يرجى اختيار دورك (رئيس نادي أو لاعب).";
+                    step2Error.style.display = "block";
+                    return;
+                }
+
+                if (currentRole === "president") {
+                    const clubName = document
+                        .getElementById("president-club-name")
+                        .value.trim();
+                    if (!clubName) {
+                        step2Error.innerText = "يرجى إدخال اسم النادي.";
+                        step2Error.style.display = "block";
+                        return;
+                    }
+                }
+
+                if (currentRole === "player") {
+                    const pos = document.getElementById("position").value;
+                    const status =
+                        document.getElementById("player-status").value;
+
+                    if (!pos) {
+                        step2Error.innerText = "يرجى اختيار المركز الأساسي.";
+                        step2Error.style.display = "block";
+                        return;
+                    }
+
+                    if (status === "signed") {
+                        const playerClubName = document
+                            .getElementById("player-club-name")
+                            .value.trim();
+                        if (!playerClubName) {
+                            step2Error.innerText =
+                                "يرجى كتابة اسم النادي الحالي الذي تلعب لصالحه.";
+                            step2Error.style.display = "block";
+                            return;
+                        }
+                    }
+                }
+
+                step2Error.style.display = "none";
+                alert("تم تسجيل طلبك بنجاح في منصة CLUBSA!");
+            }
+        </script>
+    </body>
 </html>
