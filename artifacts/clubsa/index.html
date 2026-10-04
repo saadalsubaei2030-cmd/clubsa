@@ -394,7 +394,6 @@
 
                 let isValid = true;
 
-                // التحقق الحصري من نهاية البريد بـ gmail.com
                 const isGmail =
                     email.endsWith("@gmail.com") && email.length > 10;
                 if (!isGmail) {
@@ -404,7 +403,6 @@
                     emailError.style.display = "none";
                 }
 
-                // التحقق من طول كلمة المرور (6 خانات فأكثر)
                 if (password.length < 6) {
                     passError.style.display = "block";
                     isValid = false;
