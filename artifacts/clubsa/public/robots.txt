@@ -1,2 +1,2 @@
 User-agent: *
-Allow: /Gemini_Generated_Image_4zy594zy594zy594.jpg
+Allow: /

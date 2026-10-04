@@ -1,8 +1,0 @@
-{
-  "name": "clubsa",
-  "compatibility_date": "2026-09-29",
-  "assets": {
-    "directory": "./artifacts/clubsa/dist/public",
-    "not_found_handling": "single-page-application"
-  }
-}

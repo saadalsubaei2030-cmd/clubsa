@@ -1,124 +1,117 @@
-import { useAuth as useClerkAuth, useClerk } from '@clerk/react';
-import { useUser } from '@clerk/react';
-import {
-  getGetMyProfileQueryKey,
-  useCreateMyProfile,
-  useGetMyProfile,
-  useUpdateMyProfile,
-} from '@workspace/api-client-react';
-import type {
-  ProfileInput,
-  ProfileResponse,
-} from '@workspace/api-client-react';
-import { useQueryClient } from '@tanstack/react-query';
-import {
-  updatePlayerBuild,
-  updateProfileAvatar,
-} from '@/lib/mockData';
-import type { AuthUser, PlayerBuild } from '@/types';
+import { useState } from "react";
+import { initStore, getSession, setSession, getProfile, getClubById, signUp as mockSignUp, signIn as mockSignIn, signOut as mockSignOut, completeProfile as mockCompleteProfile, updateProfileAvatar, updatePlayerBuild, updateProfileDetails } from "@/lib/mockData";
+import type { AuthUser, PlayerBuild, UserRole } from "@/types";
 
-function toAuthUser(profile: ProfileResponse): AuthUser {
-  return {
-    id: profile.id,
-    name: profile.name,
-    email: profile.email,
-    username: profile.username,
-    eaId: profile.eaId,
-    referralCode: profile.referralCode,
-    club: profile.clubName ?? (profile.isFreeAgent ? 'لاعب حر' : 'بانتظار الانضمام'),
-    clubId: profile.clubId,
-    region: profile.region,
-    role: profile.role,
-    isFreeAgent: profile.isFreeAgent,
-    joinStatus: profile.joinStatus,
-    position: profile.position ?? undefined,
-    overall: profile.overall,
-    avatar: profile.avatar ?? undefined,
-    clubLogo: profile.clubLogo ?? undefined,
-    balance: profile.walletBalance,
-    playerBuild: profile.playerBuild as PlayerBuild | null,
-  };
-}
+initStore();
 
 export function useAuth() {
-  const { isLoaded, isSignedIn } = useClerkAuth();
-  const { user: clerkUser } = useUser();
-  const { signOut: clerkSignOut } = useClerk();
-  const queryClient = useQueryClient();
-  const profileQuery = useGetMyProfile({
-    query: {
-      enabled: Boolean(isLoaded && isSignedIn),
-      queryKey: getGetMyProfileQueryKey(),
-      retry: false,
-    },
+  const [user, setUser] = useState<AuthUser | null>(() => {
+    const session = getSession();
+    if (!session) return null;
+    return buildAuthUser(session.uid);
   });
-  const createProfileMutation = useCreateMyProfile({
-    mutation: {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: getGetMyProfileQueryKey(),
-        });
-      },
-    },
-  });
-  const updateProfileMutation = useUpdateMyProfile({
-    mutation: {
-      onSuccess: async () => {
-        await queryClient.invalidateQueries({
-          queryKey: getGetMyProfileQueryKey(),
-        });
-      },
-    },
-  });
+  const [loading] = useState(false);
 
-  const profile = profileQuery.data?.profile ?? null;
-  const user = profile ? toAuthUser(profile) : null;
+  function buildAuthUser(uid: string): AuthUser | null {
+    const profile = getProfile(uid);
+    if (!profile || !profile.name) return null;
 
-  const signOut = async () => {
-    await clerkSignOut({ redirectUrl: import.meta.env.BASE_URL });
+    let clubName = "لاعب حر";
+    let clubLogo: string | undefined;
+    let clubColors: { primary: string; secondary: string } | undefined;
+
+    let budget: number | undefined;
+    let balance: number | undefined;
+
+    if (profile.club_id) {
+      const club = getClubById(profile.club_id);
+      if (club) {
+        clubName = club.name;
+        clubLogo = club.logo || undefined;
+        clubColors = { primary: club.primary_color, secondary: club.secondary_color };
+        budget = club.budget;
+      }
+    }
+    balance = profile.balance;
+
+    return {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      username: profile.username,
+      eaId: profile.ea_id,
+      referralCode: profile.referral_code,
+      club: clubName,
+      clubId: profile.club_id,
+      region: profile.region,
+      role: profile.role,
+      isFreeAgent: profile.is_free_agent,
+      joinStatus: profile.join_status as "approved" | "pending" | "rejected" | undefined,
+      position: profile.position || undefined,
+      overall: profile.overall || undefined,
+      avatar: profile.avatar || undefined,
+      clubLogo,
+      clubColors,
+      budget,
+      balance,
+      playerBuild: profile.player_build || null,
+    };
+  }
+
+  const signUp = async (email: string, password: string) => {
+    const result = mockSignUp(email, password);
+    if ("error" in result) return { error: { message: result.error }, data: null };
+    return { error: null, data: { user: { id: result.uid } } };
   };
 
-  const createProfile = async (data: ProfileInput) =>
-    createProfileMutation.mutateAsync({ data });
+  const signIn = async (email: string, password: string) => {
+    const result = mockSignIn(email, password);
+    if ("error" in result) return { error: { message: result.error }, data: null };
+    const authUser = buildAuthUser(result.uid);
+    if (authUser) setUser(authUser);
+    return { error: null, data: { user: { id: result.uid } } };
+  };
+
+  const signOut = async () => {
+    mockSignOut();
+    setUser(null);
+  };
+
+  const completeProfile = async (
+    uid: string,
+    email: string,
+    name: string,
+    role: UserRole,
+    region: string,
+    isFreeAgent: boolean,
+    clubName: string,
+    eaId: string,
+    referralCode?: string | null,
+  ) => {
+    const { error } = mockCompleteProfile(uid, name, role, region, isFreeAgent, clubName, eaId, referralCode);
+    if (error) return { error: { message: error } };
+    const authUser = buildAuthUser(uid);
+    if (authUser) setUser(authUser);
+    return { error: null };
+  };
 
   const saveAvatar = (uid: string, avatar: string | null) => {
     updateProfileAvatar(uid, avatar);
+    const authUser = buildAuthUser(uid);
+    if (authUser) setUser(authUser);
   };
 
   const saveBuild = (uid: string, build: PlayerBuild) => {
     updatePlayerBuild(uid, build);
+    const authUser = buildAuthUser(uid);
+    if (authUser) setUser(authUser);
   };
 
-  const saveProfileSettings = async (
-    uid: string,
-    updates: { eaId?: string; region?: string; name?: string },
-  ): Promise<void> => {
-    if (!profile || profile.id !== uid) {
-      throw new Error('Profile is not ready to update');
-    }
-    await updateProfileMutation.mutateAsync({
-      data: {
-        eaId: updates.eaId ?? profile.eaId,
-        ...(updates.name !== undefined ? { name: updates.name } : {}),
-        ...(updates.region !== undefined ? { region: updates.region } : {}),
-      },
-    });
+  const saveProfileSettings = (uid: string, updates: { eaId?: string; region?: string; name?: string }) => {
+    updateProfileDetails(uid, updates);
+    const authUser = buildAuthUser(uid);
+    if (authUser) setUser(authUser);
   };
 
-  return {
-    user,
-    clerkUser,
-    loading:
-      !isLoaded ||
-      (Boolean(isSignedIn) && profileQuery.isLoading),
-    isSignedIn: Boolean(isSignedIn),
-    profileError: profileQuery.error,
-    profileNotFound: Boolean(isSignedIn && profileQuery.data?.profile === null),
-    creatingProfile: createProfileMutation.isPending,
-    createProfile,
-    signOut,
-    saveAvatar,
-    saveBuild,
-    saveProfileSettings,
-  };
+  return { user, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, saveProfileSettings, setUser, fetchProfile: buildAuthUser };
 }

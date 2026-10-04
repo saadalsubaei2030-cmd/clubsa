@@ -28,7 +28,7 @@ export const GetMyProfileResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().email(),
   "emailVerified": zod.boolean(),
-  "role": zod.enum(['president', 'scout', 'player']),
+  "role": zod.enum(['president', 'player']),
   "region": zod.string(),
   "eaId": zod.string(),
   "isFreeAgent": zod.boolean(),
@@ -71,7 +71,7 @@ export const createMyProfileBodyReferralCodeMax = 32;
 export const CreateMyProfileBody = zod.object({
   "username": zod.string().min(createMyProfileBodyUsernameMin).max(createMyProfileBodyUsernameMax).regex(createMyProfileBodyUsernameRegExp),
   "name": zod.string().min(createMyProfileBodyNameMin).max(createMyProfileBodyNameMax),
-  "role": zod.enum(['president', 'scout', 'player']),
+  "role": zod.enum(['president', 'player']),
   "region": zod.string().min(1).max(createMyProfileBodyRegionMax),
   "eaId": zod.string().min(createMyProfileBodyEaIdMin).max(createMyProfileBodyEaIdMax),
   "isFreeAgent": zod.boolean(),
@@ -85,7 +85,7 @@ export const CreateMyProfileResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().email(),
   "emailVerified": zod.boolean(),
-  "role": zod.enum(['president', 'scout', 'player']),
+  "role": zod.enum(['president', 'player']),
   "region": zod.string(),
   "eaId": zod.string(),
   "isFreeAgent": zod.boolean(),
@@ -127,7 +127,7 @@ export const UpdateMyProfileResponse = zod.object({
   "name": zod.string(),
   "email": zod.string().email(),
   "emailVerified": zod.boolean(),
-  "role": zod.enum(['president', 'scout', 'player']),
+  "role": zod.enum(['president', 'player']),
   "region": zod.string(),
   "eaId": zod.string(),
   "isFreeAgent": zod.boolean(),
@@ -157,7 +157,7 @@ export const GetPublicPlayerProfileResponse = zod.object({
   "name": zod.string(),
   "region": zod.string(),
   "eaId": zod.string(),
-  "role": zod.enum(['president', 'scout', 'player']),
+  "role": zod.enum(['president', 'player']),
   "clubId": zod.string().nullable(),
   "clubName": zod.string().nullable(),
   "position": zod.string().nullable(),
@@ -190,132 +190,6 @@ export const SearchPlayersResponseItem = zod.object({
   "avatar": zod.string().nullable()
 })
 export const SearchPlayersResponse = zod.array(SearchPlayersResponseItem)
-
-
-/**
- * @summary Search CLUBSA users by username
- */
-export const searchUsersQueryQMin = 2;
-export const searchUsersQueryQMax = 24;
-
-
-
-export const SearchUsersQueryParams = zod.object({
-  "q": zod.coerce.string().min(searchUsersQueryQMin).max(searchUsersQueryQMax)
-})
-
-export const SearchUsersResponse = zod.object({
-  "users": zod.array(zod.object({
-  "id": zod.string(),
-  "username": zod.string(),
-  "name": zod.string(),
-  "avatar": zod.string().nullable()
-}).and(zod.object({
-  "relationshipStatus": zod.enum(['none', 'incoming', 'outgoing', 'accepted'])
-})))
-})
-
-
-/**
- * @summary List friends and pending friend requests for the current user
- */
-export const GetFriendsResponse = zod.object({
-  "friends": zod.array(zod.object({
-  "id": zod.string(),
-  "username": zod.string(),
-  "name": zod.string(),
-  "avatar": zod.string().nullable()
-})),
-  "incomingRequests": zod.array(zod.object({
-  "id": zod.string(),
-  "username": zod.string(),
-  "name": zod.string(),
-  "avatar": zod.string().nullable()
-})),
-  "outgoingRequests": zod.array(zod.object({
-  "id": zod.string(),
-  "username": zod.string(),
-  "name": zod.string(),
-  "avatar": zod.string().nullable()
-}))
-})
-
-
-/**
- * @summary Send a friend request
- */
-export const CreateFriendRequestParams = zod.object({
-  "userId": zod.coerce.string()
-})
-
-export const CreateFriendRequestResponse = zod.object({
-  "status": zod.enum(['pending', 'accepted'])
-})
-
-
-/**
- * @summary Remove a friend or cancel a pending request
- */
-export const DeleteFriendParams = zod.object({
-  "userId": zod.coerce.string()
-})
-
-export const DeleteFriendResponse = zod.void()
-
-
-/**
- * @summary Accept an incoming friend request
- */
-export const AcceptFriendRequestParams = zod.object({
-  "userId": zod.coerce.string()
-})
-
-export const AcceptFriendRequestResponse = zod.object({
-  "status": zod.enum(['pending', 'accepted'])
-})
-
-
-/**
- * @summary Send a private message to an accepted friend
- */
-export const sendPrivateMessageBodyReceiverIdMax = 255;
-
-export const sendPrivateMessageBodyContentMax = 4000;
-
-
-
-export const SendPrivateMessageBody = zod.object({
-  "receiverId": zod.string().min(1).max(sendPrivateMessageBodyReceiverIdMax),
-  "content": zod.string().min(1).max(sendPrivateMessageBodyContentMax)
-})
-
-export const SendPrivateMessageResponse = zod.object({
-  "message": zod.object({
-  "id": zod.string().uuid(),
-  "senderId": zod.string(),
-  "receiverId": zod.string(),
-  "content": zod.string(),
-  "createdAt": zod.coerce.date()
-})
-})
-
-
-/**
- * @summary Get the private conversation with an accepted friend
- */
-export const GetPrivateMessagesParams = zod.object({
-  "userId": zod.coerce.string()
-})
-
-export const GetPrivateMessagesResponse = zod.object({
-  "messages": zod.array(zod.object({
-  "id": zod.string().uuid(),
-  "senderId": zod.string(),
-  "receiverId": zod.string(),
-  "content": zod.string(),
-  "createdAt": zod.coerce.date()
-}))
-})
 
 
 /**
