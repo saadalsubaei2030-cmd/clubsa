@@ -51,8 +51,10 @@ export default function ChatPage({
 
   const isGuest = !auth;
 
-  // جلب البيانات للبحث (اللاعبين والأندية)
-  const allUsers = getUsers ? getUsers() : [];
+  // جلب المستخدمين والأندية الحقيقية المسجلة
+  const allUsers = getUsers
+    ? getUsers().filter((u) => u.name && u.name.trim() !== "")
+    : [];
   const allClubs = getClubs ? getClubs() : [];
 
   const filteredUsers = allUsers.filter((u) =>
@@ -65,7 +67,7 @@ export default function ChatPage({
     query.trim() !== "" &&
     (filteredUsers.length > 0 || filteredClubs.length > 0);
 
-  // مزامنة الرسائل تلقائياً كل ثانيتين
+  // مزامنة الرسائل تلقائياً
   useEffect(() => {
     const interval = setInterval(() => {
       const latest = getChat().map((m) => ({
@@ -139,7 +141,7 @@ export default function ChatPage({
       )}
 
       <div className="grid lg:grid-cols-[1fr_300px] gap-6 items-start">
-        {/* صندوق الدردشة العامة */}
+        {/* شات الدردشة العامة */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 flex flex-col h-[480px]">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 text-slate-300 text-sm font-bold">
             <MessageCircle size={16} /> الدردشة العامة
@@ -152,7 +154,7 @@ export default function ChatPage({
               <div className="h-full flex flex-col items-center justify-center text-center">
                 <MessageCircle size={28} className="text-slate-600 mb-3" />
                 <p className="text-sm font-bold text-slate-300">
-                  لا توجد بيانات حالياً
+                  لا توجد رسائل حالياً
                 </p>
               </div>
             ) : (
@@ -187,7 +189,7 @@ export default function ChatPage({
           </div>
         </div>
 
-        {/* قسم البحث عن اللاعبين والأندية */}
+        {/* البحث الفعلي عن اللاعبين والأندية */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <h2 className="text-sm font-bold text-slate-300 mb-3">
             البحث عن لاعبين / أندية
@@ -205,11 +207,15 @@ export default function ChatPage({
             />
           </div>
           <div className="space-y-2 max-h-72 overflow-y-auto">
-            {!hasSearchResults ? (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <Search size={24} className="text-slate-600 mb-3" />
-                <p className="text-sm font-bold text-slate-300">
-                  لا توجد بيانات حالياً
+            {query.trim() === "" ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center text-slate-500 text-xs">
+                اكتب اسم للبحث عن اللاعبين أو الأندية المسجلة
+              </div>
+            ) : !hasSearchResults ? (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <Search size={22} className="text-slate-600 mb-2" />
+                <p className="text-xs font-bold text-slate-300">
+                  لا توجد نتائج مطابقة
                 </p>
               </div>
             ) : (
