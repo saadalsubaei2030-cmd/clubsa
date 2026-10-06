@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Send, Search, MessageCircle, Lock } from "lucide-react";
 import { FORBIDDEN_WORDS } from "@/data";
 import { getChat, sendChatMessage } from "@/lib/mockData";
@@ -24,9 +24,20 @@ function timeAgo(dateStr: string): string {
   return `قبل ${days} يوم`;
 }
 
-export default function ChatPage({ auth, onRequireLogin }: { auth: AuthUser | null; onRequireLogin: () => void }) {
+export default function ChatPage({
+  auth,
+  onRequireLogin,
+}: {
+  auth: AuthUser | null;
+  onRequireLogin: () => void;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    getChat().map((m) => ({ id: m.id, sender: m.sender_name, text: m.text, time: timeAgo(m.created_at) }))
+    getChat().map((m) => ({
+      id: m.id,
+      sender: m.sender_name,
+      text: m.text,
+      time: timeAgo(m.created_at),
+    })),
   );
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
@@ -36,32 +47,76 @@ export default function ChatPage({ auth, onRequireLogin }: { auth: AuthUser | nu
 
   const isGuest = !auth;
 
+  // جلب وتحديث الرسائل تلقائياً كل ثانيتين للمزامنة بين الأجهزة
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const latest = getChat().map((m) => ({
+        id: m.id,
+        sender: m.sender_name,
+        text: m.text,
+        time: timeAgo(m.created_at),
+      }));
+      setMessages(latest);
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // التمرير تلقائياً لأسفل عند وصول رسائل جديدة
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
   const send = () => {
-    if (isGuest) { setShowGuestAlert(true); return; }
+    if (isGuest) {
+      setShowGuestAlert(true);
+      return;
+    }
     if (!draft.trim() || sending) return;
     setSending(true);
     const clean = filterMessage(draft.trim());
     const newMsg = sendChatMessage(auth!.id, auth!.name, clean);
-    setMessages((prev) => [...prev, { id: newMsg.id, sender: newMsg.sender_name, text: newMsg.text, time: "الآن" }]);
+
+    // تحديث القائمة فوراً عندك
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: newMsg.id,
+        sender: newMsg.sender_name,
+        text: newMsg.text,
+        time: "الآن",
+      },
+    ]);
     setDraft("");
     setSending(false);
-    setTimeout(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, 50);
   };
 
   return (
     <div className="max-w-5xl mx-auto">
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-1" style={{ fontFamily: "Cairo, sans-serif" }}>
+      <h1
+        className="text-2xl sm:text-3xl font-extrabold text-white mb-1"
+        style={{ fontFamily: "Cairo, sans-serif" }}
+      >
         الشات المجتمعي
       </h1>
-      <p className="text-slate-400 text-sm mb-6">تواصل مع اللاعبين ورؤساء الأندية — رسائلك تمر تلقائيًا على فلتر الكلمات الممنوعة</p>
+      <p className="text-slate-400 text-sm mb-6">
+        تواصل مع اللاعبين ورؤساء الأندية — رسائلك تمر تلقائيًا على فلتر الكلمات
+        الممنوعة
+      </p>
 
       {isGuest && (
         <div className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 mb-4">
           <Lock size={14} className="text-amber-400 shrink-0" />
           <span className="text-xs text-amber-300">
-            أنت تتصفح كزائر — يمكنك قراءة الرسائل ولكن لا يمكنك الكتابة. سجّل الدخول للتفاعل.
+            أنت تتصفح كزائر — يمكنك قراءة الرسائل ولكن لا يمكنك الكتابة. سجّل
+            الدخول للتفاعل.
           </span>
-          <button onClick={onRequireLogin} className="text-xs font-bold text-amber-200 underline shrink-0 ms-auto">
+          <button
+            onClick={onRequireLogin}
+            className="text-xs font-bold text-amber-200 underline shrink-0 ms-auto"
+          >
             تسجيل الدخول
           </button>
         </div>
@@ -72,11 +127,16 @@ export default function ChatPage({ auth, onRequireLogin }: { auth: AuthUser | nu
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 text-slate-300 text-sm font-bold">
             <MessageCircle size={16} /> الدردشة العامة
           </div>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          <div
+            ref={scrollRef}
+            className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
+          >
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center">
                 <MessageCircle size={28} className="text-slate-600 mb-3" />
-                <p className="text-sm font-bold text-slate-300">لا توجد بيانات حالياً</p>
+                <p className="text-sm font-bold text-slate-300">
+                  لا توجد بيانات حالياً
+                </p>
               </div>
             ) : (
               messages.map((m) => (
@@ -95,7 +155,9 @@ export default function ChatPage({ auth, onRequireLogin }: { auth: AuthUser | nu
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && send()}
-              placeholder={isGuest ? "سجّل الدخول لإرسال رسالة..." : "اكتب رسالتك..."}
+              placeholder={
+                isGuest ? "سجّل الدخول لإرسال رسالة..." : "اكتب رسالتك..."
+              }
               className="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
             />
             <button
@@ -109,9 +171,14 @@ export default function ChatPage({ auth, onRequireLogin }: { auth: AuthUser | nu
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <h2 className="text-sm font-bold text-slate-300 mb-3">البحث عن لاعبين / أندية</h2>
+          <h2 className="text-sm font-bold text-slate-300 mb-3">
+            البحث عن لاعبين / أندية
+          </h2>
           <div className="relative mb-3">
-            <Search size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search
+              size={14}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+            />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -122,23 +189,44 @@ export default function ChatPage({ auth, onRequireLogin }: { auth: AuthUser | nu
           <div className="space-y-2 max-h-72 overflow-y-auto">
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <Search size={24} className="text-slate-600 mb-3" />
-              <p className="text-sm font-bold text-slate-300">لا توجد بيانات حالياً</p>
+              <p className="text-sm font-bold text-slate-300">
+                لا توجد بيانات حالياً
+              </p>
             </div>
           </div>
         </div>
       </div>
 
       {showGuestAlert && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setShowGuestAlert(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xs rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center">
+        <div
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4"
+          onClick={() => setShowGuestAlert(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xs rounded-2xl border border-slate-800 bg-slate-900 p-6 text-center"
+          >
             <Lock size={28} className="mx-auto text-amber-400 mb-3" />
-            <h3 className="text-sm font-bold text-white mb-1">يلزم تسجيل الدخول</h3>
-            <p className="text-xs text-slate-400 mb-5">لإرسال الرسائل في الشات يجب تسجيل الدخول أو إنشاء حساب.</p>
+            <h3 className="text-sm font-bold text-white mb-1">
+              يلزم تسجيل الدخول
+            </h3>
+            <p className="text-xs text-slate-400 mb-5">
+              لإرسال الرسائل في الشات يجب تسجيل الدخول أو إنشاء حساب.
+            </p>
             <div className="flex gap-2">
-              <button onClick={() => setShowGuestAlert(false)} className="flex-1 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
+              <button
+                onClick={() => setShowGuestAlert(false)}
+                className="flex-1 py-2 rounded-lg text-xs font-bold bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+              >
                 إلغاء
               </button>
-              <button onClick={() => { setShowGuestAlert(false); onRequireLogin(); }} className="flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors">
+              <button
+                onClick={() => {
+                  setShowGuestAlert(false);
+                  onRequireLogin();
+                }}
+                className="flex-1 py-2 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+              >
                 تسجيل الدخول
               </button>
             </div>
