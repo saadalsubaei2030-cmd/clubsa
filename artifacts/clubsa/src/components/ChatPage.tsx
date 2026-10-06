@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Search, MessageCircle, Lock } from "lucide-react";
+import { Send, Search, MessageCircle, Lock, User, Shield } from "lucide-react";
 import { FORBIDDEN_WORDS } from "@/data";
-import { getChat, sendChatMessage } from "@/lib/mockData";
+import { getChat, sendChatMessage, getUsers, getClubs } from "@/lib/mockData";
 import type { AuthUser, ChatMessage } from "@/types";
 
 function filterMessage(text: string): string {
@@ -27,9 +27,13 @@ function timeAgo(dateStr: string): string {
 export default function ChatPage({
   auth,
   onRequireLogin,
+  onSelectUser,
+  onSelectClub,
 }: {
   auth: AuthUser | null;
   onRequireLogin: () => void;
+  onSelectUser?: (userId: string) => void;
+  onSelectClub?: (clubId: string) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(() =>
     getChat().map((m) => ({
@@ -47,7 +51,21 @@ export default function ChatPage({
 
   const isGuest = !auth;
 
-  // جلب وتحديث الرسائل تلقائياً كل ثانيتين للمزامنة بين الأجهزة
+  // جلب البيانات للبحث (اللاعبين والأندية)
+  const allUsers = getUsers ? getUsers() : [];
+  const allClubs = getClubs ? getClubs() : [];
+
+  const filteredUsers = allUsers.filter((u) =>
+    u.name.toLowerCase().includes(query.toLowerCase()),
+  );
+  const filteredClubs = allClubs.filter((c) =>
+    c.name.toLowerCase().includes(query.toLowerCase()),
+  );
+  const hasSearchResults =
+    query.trim() !== "" &&
+    (filteredUsers.length > 0 || filteredClubs.length > 0);
+
+  // مزامنة الرسائل تلقائياً كل ثانيتين
   useEffect(() => {
     const interval = setInterval(() => {
       const latest = getChat().map((m) => ({
@@ -62,7 +80,6 @@ export default function ChatPage({
     return () => clearInterval(interval);
   }, []);
 
-  // التمرير تلقائياً لأسفل عند وصول رسائل جديدة
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -79,7 +96,6 @@ export default function ChatPage({
     const clean = filterMessage(draft.trim());
     const newMsg = sendChatMessage(auth!.id, auth!.name, clean);
 
-    // تحديث القائمة فوراً عندك
     setMessages((prev) => [
       ...prev,
       {
@@ -123,6 +139,7 @@ export default function ChatPage({
       )}
 
       <div className="grid lg:grid-cols-[1fr_300px] gap-6 items-start">
+        {/* صندوق الدردشة العامة */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 flex flex-col h-[480px]">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 text-slate-300 text-sm font-bold">
             <MessageCircle size={16} /> الدردشة العامة
@@ -170,6 +187,7 @@ export default function ChatPage({
           </div>
         </div>
 
+        {/* قسم البحث عن اللاعبين والأندية */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <h2 className="text-sm font-bold text-slate-300 mb-3">
             البحث عن لاعبين / أندية
@@ -187,12 +205,56 @@ export default function ChatPage({
             />
           </div>
           <div className="space-y-2 max-h-72 overflow-y-auto">
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Search size={24} className="text-slate-600 mb-3" />
-              <p className="text-sm font-bold text-slate-300">
-                لا توجد بيانات حالياً
-              </p>
-            </div>
+            {!hasSearchResults ? (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Search size={24} className="text-slate-600 mb-3" />
+                <p className="text-sm font-bold text-slate-300">
+                  لا توجد بيانات حالياً
+                </p>
+              </div>
+            ) : (
+              <>
+                {filteredUsers.length > 0 && (
+                  <div className="mb-2">
+                    <span className="text-[11px] text-slate-400 font-bold block mb-1">
+                      اللاعبون
+                    </span>
+                    {filteredUsers.map((user) => (
+                      <div
+                        key={user.id}
+                        onClick={() => onSelectUser && onSelectUser(user.id)}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800 cursor-pointer transition-colors mb-1"
+                      >
+                        <User size={14} className="text-cyan-400 shrink-0" />
+                        <span className="text-xs text-slate-200 font-medium truncate">
+                          {user.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {filteredClubs.length > 0 && (
+                  <div>
+                    <span className="text-[11px] text-slate-400 font-bold block mb-1">
+                      الأندية
+                    </span>
+                    {filteredClubs.map((club) => (
+                      <div
+                        key={club.id}
+                        onClick={() => onSelectClub && onSelectClub(club.id)}
+                        className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800 cursor-pointer transition-colors mb-1"
+                      >
+                        <Shield size={14} className="text-blue-400 shrink-0" />
+                        <span className="text-xs text-slate-200 font-medium truncate">
+                          {club.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>
