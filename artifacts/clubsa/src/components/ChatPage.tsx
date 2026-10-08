@@ -1,8 +1,60 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Search, MessageCircle, Lock, User, Shield } from "lucide-react";
 import { FORBIDDEN_WORDS } from "@/data";
-import { getChat, sendChatMessage, getUsers, getClubs } from "@/lib/mockData";
+import { getUsers, getClubs } from "@/lib/mockData";
 import type { AuthUser, ChatMessage } from "@/types";
+
+// الدردشة العامة تمر عبر خادم Replit حتى تظهر الرسائل لكل الزوار.
+// يمكن تغيير العنوان من متغير البيئة VITE_API_BASE_URL وقت البناء.
+const API_BASE = (
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
+  "https://clubsa--saadalsubaei203.replit.app"
+).replace(/\/+$/, "");
+
+type ServerMessage = {
+  id: number;
+  senderId: string;
+  senderName: string;
+  text: string;
+  createdAt: string;
+};
+
+function toChatMessage(m: ServerMessage): ChatMessage {
+  return { id: m.id, sender: m.senderName, text: m.text, time: timeAgo(m.createdAt) };
+}
+
+async function fetchMessages(signal?: AbortSignal): Promise<ServerMessage[]> {
+  const response = await fetch(`${API_BASE}/api/chat/public?limit=100`, {
+    signal,
+    cache: "no-store",
+  });
+  if (!response.ok) throw new Error(`load_failed_${response.status}`);
+  const data = (await response.json()) as { messages?: ServerMessage[] };
+  return Array.isArray(data.messages) ? data.messages : [];
+}
+
+class SendError extends Error {
+  status: number;
+  constructor(status: number) {
+    super(`send_failed_${status}`);
+    this.status = status;
+  }
+}
+
+async function postMessage(body: {
+  senderId: string;
+  senderName: string;
+  text: string;
+}): Promise<ServerMessage> {
+  const response = await fetch(`${API_BASE}/api/chat/public`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) throw new SendError(response.status);
+  const data = (await response.json()) as { message: ServerMessage };
+  return data.message;
+}
 
 function filterMessage(text: string): string {
   let result = text;
@@ -35,14 +87,10 @@ export default function ChatPage({
   onSelectUser?: (userId: string) => void;
   onSelectClub?: (clubId: string) => void;
 }) {
-  const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    getChat().map((m) => ({
-      id: m.id,
-      sender: m.sender_name,
-      text: m.text,
-      time: timeAgo(m.created_at),
-    })),
-  );
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [sendError, setSendError] = useState("");
   const [draft, setDraft] = useState("");
   const [query, setQuery] = useState("");
   const [showGuestAlert, setShowGuestAlert] = useState(false);
@@ -67,48 +115,73 @@ export default function ChatPage({
     query.trim() !== "" &&
     (filteredUsers.length > 0 || filteredClubs.length > 0);
 
-  // مزامنة الرسائل تلقائياً
+  // جلب الرسائل من الخادم كل 3 ثوانٍ حتى تظهر رسائل الآخرين
   useEffect(() => {
-    const interval = setInterval(() => {
-      const latest = getChat().map((m) => ({
-        id: m.id,
-        sender: m.sender_name,
-        text: m.text,
-        time: timeAgo(m.created_at),
-      }));
-      setMessages(latest);
-    }, 2000);
+    let cancelled = false;
+    let controller: AbortController | null = null;
 
-    return () => clearInterval(interval);
+    const load = async () => {
+      controller?.abort();
+      controller = new AbortController();
+      try {
+        const latest = await fetchMessages(controller.signal);
+        if (cancelled) return;
+        setMessages(latest.map(toChatMessage));
+        setLoadError(false);
+        setLoaded(true);
+      } catch {
+        if (cancelled || controller?.signal.aborted) return;
+        setLoadError(true);
+      }
+    };
+
+    void load();
+    const interval = setInterval(() => void load(), 3000);
+    return () => {
+      cancelled = true;
+      controller?.abort();
+      clearInterval(interval);
+    };
   }, []);
 
+  // النزول لآخر رسالة فقط عند وصول رسالة جديدة (وليس عند تحديث الأوقات)
+  const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : 0;
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [lastMessageId, messages.length]);
 
-  const send = () => {
+  const send = async () => {
     if (isGuest) {
       setShowGuestAlert(true);
       return;
     }
-    if (!draft.trim() || sending) return;
+    const text = filterMessage(draft.trim());
+    if (!text || sending || !auth) return;
     setSending(true);
-    const clean = filterMessage(draft.trim());
-    const newMsg = sendChatMessage(auth!.id, auth!.name, clean);
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: newMsg.id,
-        sender: newMsg.sender_name,
-        text: newMsg.text,
-        time: "الآن",
-      },
-    ]);
-    setDraft("");
-    setSending(false);
+    setSendError("");
+    try {
+      const saved = await postMessage({
+        senderId: auth.id,
+        senderName: auth.name,
+        text,
+      });
+      setMessages((prev) =>
+        prev.some((m) => m.id === saved.id) ? prev : [...prev, toChatMessage(saved)],
+      );
+      setDraft("");
+    } catch (error) {
+      setSendError(
+        error instanceof SendError && error.status === 429
+          ? "أرسلت رسائل كثيرة، انتظر قليلًا ثم حاول مرة أخرى."
+          : error instanceof SendError && error.status === 400
+            ? "تعذّر إرسال الرسالة. تأكد أنها غير فارغة وأقل من 500 حرف."
+            : "تعذّر إرسال الرسالة. تحقق من الاتصال وحاول مرة أخرى.",
+      );
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -154,7 +227,11 @@ export default function ChatPage({
               <div className="h-full flex flex-col items-center justify-center text-center">
                 <MessageCircle size={28} className="text-slate-600 mb-3" />
                 <p className="text-sm font-bold text-slate-300">
-                  لا توجد رسائل حالياً
+                  {!loaded && !loadError
+                    ? "جارٍ تحميل الرسائل..."
+                    : loadError
+                      ? "تعذّر الاتصال بالخادم. نعيد المحاولة تلقائيًا..."
+                      : "لا توجد رسائل حالياً — كن أول من يكتب"}
                 </p>
               </div>
             ) : (
@@ -169,19 +246,29 @@ export default function ChatPage({
               ))
             )}
           </div>
+          {(sendError || (loadError && messages.length > 0)) && (
+            <p
+              role="alert"
+              className="px-4 py-2 text-xs text-red-300 bg-red-950/40 border-t border-red-900/60"
+            >
+              {sendError || "انقطع الاتصال بالخادم، وقد لا تظهر الرسائل الجديدة. نعيد المحاولة تلقائيًا..."}
+            </p>
+          )}
           <div className="flex items-center gap-2 p-3 border-t border-slate-800">
             <input
               value={draft}
+              maxLength={500}
               onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && send()}
+              onKeyDown={(e) => e.key === "Enter" && void send()}
               placeholder={
                 isGuest ? "سجّل الدخول لإرسال رسالة..." : "اكتب رسالتك..."
               }
               className="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
             />
             <button
-              onClick={send}
+              onClick={() => void send()}
               disabled={sending}
+              aria-label="إرسال"
               className={`p-2 rounded-lg transition-colors ${isGuest || sending ? "bg-slate-700 text-slate-500" : "bg-blue-600 hover:bg-blue-500 text-white"}`}
             >
               <Send size={16} />
