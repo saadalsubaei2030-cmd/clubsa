@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Search, MessageCircle, Lock, User, Shield } from "lucide-react";
+import { Send, MessageCircle, Lock } from "lucide-react";
+import DirectoryPanel from "@/components/DirectoryPanel";
 import { FORBIDDEN_WORDS } from "@/data";
-import { getUsers, getClubs } from "@/lib/mockData";
 import type { AuthUser, ChatMessage } from "@/types";
 
 // الدردشة العامة تمر عبر خادم Replit حتى تظهر الرسائل لكل الزوار.
@@ -79,41 +79,20 @@ function timeAgo(dateStr: string): string {
 export default function ChatPage({
   auth,
   onRequireLogin,
-  onSelectUser,
-  onSelectClub,
 }: {
   auth: AuthUser | null;
   onRequireLogin: () => void;
-  onSelectUser?: (userId: string) => void;
-  onSelectClub?: (clubId: string) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [sendError, setSendError] = useState("");
   const [draft, setDraft] = useState("");
-  const [query, setQuery] = useState("");
   const [showGuestAlert, setShowGuestAlert] = useState(false);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const isGuest = !auth;
-
-  // جلب المستخدمين والأندية الحقيقية المسجلة
-  const allUsers = getUsers
-    ? getUsers().filter((u) => u.name && u.name.trim() !== "")
-    : [];
-  const allClubs = getClubs ? getClubs() : [];
-
-  const filteredUsers = allUsers.filter((u) =>
-    u.name.toLowerCase().includes(query.toLowerCase()),
-  );
-  const filteredClubs = allClubs.filter((c) =>
-    c.name.toLowerCase().includes(query.toLowerCase()),
-  );
-  const hasSearchResults =
-    query.trim() !== "" &&
-    (filteredUsers.length > 0 || filteredClubs.length > 0);
 
   // جلب الرسائل من الخادم كل 3 ثوانٍ حتى تظهر رسائل الآخرين
   useEffect(() => {
@@ -276,80 +255,7 @@ export default function ChatPage({
           </div>
         </div>
 
-        {/* البحث الفعلي عن اللاعبين والأندية */}
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
-          <h2 className="text-sm font-bold text-slate-300 mb-3">
-            البحث عن لاعبين / أندية
-          </h2>
-          <div className="relative mb-3">
-            <Search
-              size={14}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
-            />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="اسم اللاعب أو النادي..."
-              className="w-full bg-slate-800/60 border border-slate-700 rounded-lg py-2 pe-9 ps-3 text-sm text-slate-100 outline-none focus:border-cyan-500"
-            />
-          </div>
-          <div className="space-y-2 max-h-72 overflow-y-auto">
-            {query.trim() === "" ? (
-              <div className="flex flex-col items-center justify-center py-6 text-center text-slate-500 text-xs">
-                اكتب اسم للبحث عن اللاعبين أو الأندية المسجلة
-              </div>
-            ) : !hasSearchResults ? (
-              <div className="flex flex-col items-center justify-center py-6 text-center">
-                <Search size={22} className="text-slate-600 mb-2" />
-                <p className="text-xs font-bold text-slate-300">
-                  لا توجد نتائج مطابقة
-                </p>
-              </div>
-            ) : (
-              <>
-                {filteredUsers.length > 0 && (
-                  <div className="mb-2">
-                    <span className="text-[11px] text-slate-400 font-bold block mb-1">
-                      اللاعبون
-                    </span>
-                    {filteredUsers.map((user) => (
-                      <div
-                        key={user.id}
-                        onClick={() => onSelectUser && onSelectUser(user.id)}
-                        className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800 cursor-pointer transition-colors mb-1"
-                      >
-                        <User size={14} className="text-cyan-400 shrink-0" />
-                        <span className="text-xs text-slate-200 font-medium truncate">
-                          {user.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {filteredClubs.length > 0 && (
-                  <div>
-                    <span className="text-[11px] text-slate-400 font-bold block mb-1">
-                      الأندية
-                    </span>
-                    {filteredClubs.map((club) => (
-                      <div
-                        key={club.id}
-                        onClick={() => onSelectClub && onSelectClub(club.id)}
-                        className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/40 hover:bg-slate-800 cursor-pointer transition-colors mb-1"
-                      >
-                        <Shield size={14} className="text-blue-400 shrink-0" />
-                        <span className="text-xs text-slate-200 font-medium truncate">
-                          {club.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
+        <DirectoryPanel auth={auth} onRequireLogin={onRequireLogin} />
       </div>
 
       {showGuestAlert && (

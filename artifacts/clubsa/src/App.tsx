@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGoogleFonts } from "@/hooks/useGoogleFonts";
 import { useAuth } from "@/hooks/useAuth";
+import { useSocialSync } from "@/hooks/useSocialSync";
 import Navbar from "@/components/Navbar";
 import CalculatorPage from "@/components/CalculatorPage";
 import TournamentsPage from "@/components/TournamentsPage";
@@ -56,6 +57,7 @@ function getAppHomePath(): string {
 export default function App() {
   useGoogleFonts();
   const { user: auth, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, saveProfileSettings, setUser, fetchProfile } = useAuth();
+  useSocialSync(auth);
   const [tab, setTab] = useState<TabId>("calculator");
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);

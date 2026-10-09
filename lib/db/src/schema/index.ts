@@ -5,3 +5,4 @@ export * from "./squads";
 export * from "./wallet";
 export * from "./market";
 export * from "./public-chat";
+export * from "./social";
