@@ -1,3 +1,6 @@
 name = "clubsa"
 compatibility_date = "2026-09-28"
-pages_build_output_dir = "./artifacts/clubsa/dist/public"
+
+[assets]
+directory = "./artifacts/clubsa/dist/public"
+not_found_handling = "single-page-application"
