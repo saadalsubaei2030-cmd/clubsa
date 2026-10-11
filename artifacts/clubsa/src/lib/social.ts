@@ -186,7 +186,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 /* ───────────── المزامنة ───────────── */
 
 function smallImage(value: string | null | undefined): string | null {
-  return value && value.length <= 190_000 ? value : null;
+  return value && value.length <= 60_000 ? value : null;
 }
 
 export function buildSyncPayload(auth: AuthUser): SyncPayload {
