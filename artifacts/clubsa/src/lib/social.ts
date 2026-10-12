@@ -129,6 +129,7 @@ export class SocialError extends Error {
 }
 
 type RequestOptions = {
+  base?: string;
   method?: string;
   body?: unknown;
   userId?: string | null;
@@ -144,7 +145,7 @@ async function send<T>(path: string, options: RequestOptions): Promise<T> {
     headers["x-clubsa-user"] = options.userId;
     headers["x-clubsa-key"] = getSocialKey();
   }
-  const response = await fetch(`${API_BASE}/api/social${path}`, {
+  const response = await fetch(`${API_BASE}${options.base ?? "/api/social"}${path}`, {
     method: options.method ?? "GET",
     headers,
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
@@ -164,7 +165,7 @@ async function send<T>(path: string, options: RequestOptions): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   try {
     return await send<T>(path, options);
   } catch (error) {

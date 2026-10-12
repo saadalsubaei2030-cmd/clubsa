@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useGoogleFonts } from "@/hooks/useGoogleFonts";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocialSync } from "@/hooks/useSocialSync";
+import { useMarketSync } from "@/hooks/useMarketSync";
 import Navbar from "@/components/Navbar";
 import CalculatorPage from "@/components/CalculatorPage";
 import TournamentsPage from "@/components/TournamentsPage";
@@ -58,6 +59,10 @@ export default function App() {
   useGoogleFonts();
   const { user: auth, loading, signUp, signIn, signOut, completeProfile, saveAvatar, saveBuild, saveProfileSettings, setUser, fetchProfile } = useAuth();
   useSocialSync(auth);
+  useMarketSync(auth, (uid) => {
+    const next = fetchProfile(uid);
+    if (next) setUser(next);
+  });
   const [tab, setTab] = useState<TabId>("calculator");
   const [welcomeOpen, setWelcomeOpen] = useState(true);
   const [loginOpen, setLoginOpen] = useState(false);
@@ -221,7 +226,7 @@ export default function App() {
             {tab === "calculator" && <CalculatorPage auth={auth} onRequireLogin={handleRequireLogin} onSaveBuild={(build) => auth && saveBuild(auth.id, build)} />}
             {tab === "tournaments" && <TournamentsPage />}
             {tab === "chat" && <ChatPage auth={auth} onRequireLogin={handleRequireLogin} />}
-            {tab === "market" && <MarketPage auth={auth} onRequireLogin={handleRequireLogin} onOpenClubProfile={openClubProfile} />}
+            {tab === "market" && <MarketPage auth={auth} onRequireLogin={handleRequireLogin} onOpenClubProfile={openClubProfile} onAuthRefresh={(uid) => { const next = fetchProfile(uid); if (next) setUser(next); }} />}
             {tab === "news" && <NewsPage />}
             {tab === "leaderboards" && <LeaderboardsPage />}
           </>

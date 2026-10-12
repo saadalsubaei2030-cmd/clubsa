@@ -611,3 +611,68 @@ export function submitOffer(
 ): { error: string | null } {
   return { error: null };
 }
+
+
+export type MarketState = {
+  balance: number | null;
+  club: { id: string; budget: number } | null;
+  assignment: {
+    clubId: string;
+    clubName: string;
+    logo: string | null;
+    primaryColor: string;
+    secondaryColor: string;
+    presidentId: string;
+  } | null;
+};
+
+/** يطبّق رصيد المحفظة وانتقال النادي القادم من الخادم على الحساب المحلي. يرجع true إذا تغيّر شيء. */
+export function applyMarketState(userId: string, state: MarketState): boolean {
+  let changed = false;
+  const users = getUsers();
+  const user = users.find((entry) => entry.id === userId);
+  if (!user) return false;
+
+  if (state.balance !== null && user.balance !== state.balance) {
+    user.balance = state.balance;
+    changed = true;
+  }
+
+  if (state.assignment) {
+    const a = state.assignment;
+    const clubs = getClubs();
+    if (!clubs.some((c) => c.id === a.clubId)) {
+      clubs.push({
+        id: a.clubId,
+        name: a.clubName,
+        president_id: a.presidentId,
+        region: user.region,
+        logo: a.logo,
+        primary_color: a.primaryColor,
+        secondary_color: a.secondaryColor,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        trophies: 0,
+        budget: 0,
+      });
+      saveClubs(clubs);
+    }
+    user.club_id = a.clubId;
+    user.is_free_agent = false;
+    user.join_status = "approved";
+    changed = true;
+  }
+  if (changed) saveUsers(users);
+
+  if (state.club) {
+    const clubs = getClubs();
+    const club = clubs.find((c) => c.id === state.club!.id);
+    if (club && club.budget !== state.club.budget) {
+      club.budget = state.club.budget;
+      saveClubs(clubs);
+      changed = true;
+    }
+  }
+  return changed;
+}
