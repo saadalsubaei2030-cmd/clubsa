@@ -23,7 +23,7 @@ const searchLimit = createRateLimiter({ windowMs: 60_000, max: 90 });
 
 let tablesReady: Promise<void> | null = null;
 
-function ensureTables(): Promise<void> {
+export function ensureTables(): Promise<void> {
   tablesReady ??= pool
     .query(
       `CREATE TABLE IF NOT EXISTS clubsa_social_users (
@@ -75,7 +75,17 @@ function ensureTables(): Promise<void> {
       CREATE INDEX IF NOT EXISTS clubsa_social_messages_receiver_idx
         ON clubsa_social_messages (receiver_id, id);
       CREATE INDEX IF NOT EXISTS clubsa_social_messages_sender_idx
-        ON clubsa_social_messages (sender_id, id);`,
+        ON clubsa_social_messages (sender_id, id);
+      CREATE TABLE IF NOT EXISTS clubsa_market_wallets (
+        kind text NOT NULL,
+        owner_id text NOT NULL,
+        balance bigint NOT NULL DEFAULT 0,
+        assignment_pending boolean NOT NULL DEFAULT false,
+        assigned_club_id text,
+        updated_at timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (kind, owner_id),
+        CONSTRAINT clubsa_market_wallets_nonneg CHECK (balance >= 0)
+      );`,
     )
     .then(() => undefined)
     .catch((error: unknown) => {
@@ -127,7 +137,7 @@ function sameHash(a: string, b: string): boolean {
 }
 
 /** يتحقق من هوية الطلب: معرّف المستخدم + مفتاحه السري المحفوظ في متصفحه. */
-async function authenticate(req: Request): Promise<string | null> {
+export async function authenticate(req: Request): Promise<string | null> {
   const id = header(req, "x-clubsa-user");
   const key = header(req, "x-clubsa-key");
   if (!isValidId(id) || !isValidKey(key)) return null;
@@ -236,8 +246,15 @@ router.put(
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name, username = EXCLUDED.username, role = EXCLUDED.role,
          region = EXCLUDED.region, ea_id = EXCLUDED.ea_id, position = EXCLUDED.position,
-         overall = EXCLUDED.overall, avatar = EXCLUDED.avatar, club_id = EXCLUDED.club_id,
-         club_name = EXCLUDED.club_name, is_free_agent = EXCLUDED.is_free_agent, updated_at = now()`,
+         overall = EXCLUDED.overall, avatar = EXCLUDED.avatar,
+         -- بعد صفقة انتقال يبقى النادي المسجّل على الخادم حتى يؤكد متصفح اللاعب استلامه
+         club_id = CASE WHEN EXISTS (SELECT 1 FROM clubsa_market_wallets w WHERE w.kind = 'user' AND w.owner_id = clubsa_social_users.id AND w.assignment_pending)
+                        THEN clubsa_social_users.club_id ELSE EXCLUDED.club_id END,
+         club_name = CASE WHEN EXISTS (SELECT 1 FROM clubsa_market_wallets w WHERE w.kind = 'user' AND w.owner_id = clubsa_social_users.id AND w.assignment_pending)
+                          THEN clubsa_social_users.club_name ELSE EXCLUDED.club_name END,
+         is_free_agent = CASE WHEN EXISTS (SELECT 1 FROM clubsa_market_wallets w WHERE w.kind = 'user' AND w.owner_id = clubsa_social_users.id AND w.assignment_pending)
+                              THEN clubsa_social_users.is_free_agent ELSE EXCLUDED.is_free_agent END,
+         updated_at = now()`,
       [id, hash, p.name, p.username, p.role, p.region, p.eaId, p.position, p.overall, p.avatar, p.clubId, p.clubName, p.isFreeAgent],
     );
 

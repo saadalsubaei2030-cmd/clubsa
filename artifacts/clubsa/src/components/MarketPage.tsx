@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Repeat, Clock, TrendingUp, Search, Wallet, Lock, ArrowRightLeft, Shield, X } from "lucide-react";
-import { getListings, getClubProfile, getClubPlayers, submitOffer } from "@/lib/mockData";
+import { getClubProfile, getClubPlayers, applyMarketState } from "@/lib/mockData";
+import { buyListing, cancelMyListing, createListing, fetchRemoteListings, getMarketState, marketErrorText } from "@/lib/market";
+import type { RemoteListing } from "@/lib/market";
 import { POSITION_LABELS } from "@/data";
-import type { AuthUser, MarketListing, ClubProfile, PlayerProfile } from "@/types";
+import type { AuthUser, ClubProfile, PlayerProfile } from "@/types";
 
 const MERCATO_DAYS = [4, 5, 6];
 
@@ -146,24 +148,36 @@ function ClubProfileModal({ club, onClose }: { club: ClubProfile; onClose: () =>
   );
 }
 
+const PLAYER_PERCENT = 70;
+
+function money(n: number): string {
+  return n.toLocaleString("en-US");
+}
+
 export default function MarketPage({
   auth,
   onRequireLogin,
   onOpenClubProfile,
+  onAuthRefresh,
 }: {
   auth: AuthUser | null;
   onRequireLogin: () => void;
   onOpenClubProfile?: (clubId: string) => void;
+  onAuthRefresh?: (userId: string) => void;
 }) {
   const open = isMercatoOpen();
   const [target] = useState(() => (open ? getNextMercatoClose() : getNextMercatoOpen()));
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(() => calcTimeLeft(target));
   const [query, setQuery] = useState("");
-  const [offerListing, setOfferListing] = useState<MarketListing | null>(null);
-  const [offerAmount, setOfferAmount] = useState("");
-  const [offerError, setOfferError] = useState("");
-  const [offerSuccess, setOfferSuccess] = useState(false);
-  const [listings] = useState<MarketListing[]>(() => getListings());
+  const [listings, setListings] = useState<RemoteListing[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [buyTarget, setBuyTarget] = useState<RemoteListing | null>(null);
+  const [buyError, setBuyError] = useState("");
+  const [buyDone, setBuyDone] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [myPrice, setMyPrice] = useState("");
+  const [myError, setMyError] = useState("");
   const [clubProfile, setClubProfile] = useState<ClubProfile | null>(null);
 
   useEffect(() => {
@@ -171,11 +185,48 @@ export default function MarketPage({
     return () => clearInterval(interval);
   }, [target]);
 
+  const reload = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const data = await fetchRemoteListings(signal);
+      setListings(data.listings);
+      setLoadError(false);
+      setLoaded(true);
+    } catch {
+      if (!signal?.aborted) setLoadError(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void reload(controller.signal);
+    const timer = setInterval(() => void reload(controller.signal), 5000);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
+  }, [reload]);
+
+  const refreshWallet = async () => {
+    if (!auth) return;
+    try {
+      const state = await getMarketState(auth.id);
+      if (applyMarketState(auth.id, state)) onAuthRefresh?.(auth.id);
+    } catch {
+      // سيحدّثها المزامن الدوري لاحقًا
+    }
+  };
+
   const targetLabel = target.toLocaleDateString("ar-SA", { weekday: "long", day: "numeric", month: "long" });
 
   const filtered = listings.filter(
-    (l) => !query || l.player_name.includes(query) || l.club_name.includes(query) || (POSITION_LABELS[l.position] || l.position).includes(query)
+    (l) =>
+      !query ||
+      l.player.name.includes(query) ||
+      (l.player.clubName ?? "").includes(query) ||
+      (POSITION_LABELS[l.player.position ?? ""] || l.player.position || "").includes(query),
   );
+
+  const myListing = auth ? listings.find((l) => l.player.id === auth.id) : undefined;
 
   const openClubProfile = (clubId: string) => {
     if (onOpenClubProfile) {
@@ -186,28 +237,62 @@ export default function MarketPage({
     if (profile) setClubProfile(profile);
   };
 
-  const handleOffer = () => {
+  const listMyself = async () => {
     if (!auth) { onRequireLogin(); return; }
-    if (auth.role !== "president" && auth.role !== "scout") { setOfferError("عرض الانتقالات متاح لرئيس النادي والكشاف فقط."); return; }
-    const amount = Number(offerAmount);
-    if (!amount || amount <= 0) { setOfferError("يرجى إدخال مبلغ صحيح."); return; }
-    if (amount < offerListing!.price * 0.5) { setOfferError("العرض منخفض جداً عن قيمة اللاعب."); return; }
-    if (!auth.clubId) { setOfferError("لا يوجد نادي مرتبط بحسابك."); return; }
-
-    setOfferError("");
-    const { error } = submitOffer(offerListing!.id, auth.clubId, auth.club, amount);
-    if (error) { setOfferError(error); return; }
-    setOfferSuccess(true);
-    setTimeout(() => { setOfferSuccess(false); setOfferListing(null); setOfferAmount(""); }, 2500);
+    const price = Number(myPrice);
+    if (!Number.isInteger(price) || price < 1) { setMyError("أدخل مبلغًا صحيحًا (رقم صحيح أكبر من صفر)."); return; }
+    setBusy(true);
+    setMyError("");
+    try {
+      await createListing(auth.id, price);
+      setMyPrice("");
+      await reload();
+    } catch (e) {
+      setMyError(marketErrorText(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const tryOffer = (listing: MarketListing) => {
-    if (!auth) { onRequireLogin(); return; }
-    setOfferListing(listing);
-    setOfferAmount("");
-    setOfferError("");
-    setOfferSuccess(false);
+  const cancelMine = async () => {
+    if (!auth) return;
+    setBusy(true);
+    setMyError("");
+    try {
+      await cancelMyListing(auth.id);
+      await reload();
+    } catch (e) {
+      setMyError(marketErrorText(e));
+    } finally {
+      setBusy(false);
+    }
   };
+
+  const tryBuy = (listing: RemoteListing) => {
+    if (!auth) { onRequireLogin(); return; }
+    setBuyTarget(listing);
+    setBuyError("");
+    setBuyDone("");
+  };
+
+  const confirmBuy = async () => {
+    if (!auth || !buyTarget) return;
+    if (auth.role !== "president") { setBuyError("شراء اللاعبين متاح لرئيس النادي فقط."); return; }
+    setBusy(true);
+    setBuyError("");
+    try {
+      const result = await buyListing(auth.id, buyTarget.id);
+      setBuyDone(`تم ضمّ ${buyTarget.player.name}. دُفع ${money(result.price)} — اللاعب ${money(result.playerShare)}${result.clubShare > 0 ? ` ونادييه السابق ${money(result.clubShare)}` : ""}.`);
+      await Promise.all([reload(), refreshWallet()]);
+      setTimeout(() => { setBuyTarget(null); setBuyDone(""); }, 3500);
+    } catch (e) {
+      setBuyError(marketErrorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const isPlayer = auth?.role === "player";
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -249,6 +334,40 @@ export default function MarketPage({
 
       {open ? (
         <>
+          {isPlayer && (
+            <div className="rounded-2xl border border-cyan-500/30 bg-slate-900/60 p-4 mb-6">
+              <h2 className="text-sm font-bold text-cyan-300 mb-1">اعرض نفسك للبيع</h2>
+              <p className="text-[11px] text-slate-500 mb-3">
+                عند ضمّك يستلم لاعب {PLAYER_PERCENT}% من المبلغ في محفظته، و{100 - PLAYER_PERCENT}% يذهب لناديك الحالي (إن كان لك نادٍ).
+              </p>
+              {myListing ? (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-slate-200">
+                    أنت معروض في السوق بسعر <span className="font-bold text-amber-300">{money(myListing.price)}</span>
+                  </p>
+                  <button onClick={() => void cancelMine()} disabled={busy} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-red-300 hover:bg-slate-700 disabled:opacity-50">
+                    إلغاء العرض
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    value={myPrice}
+                    onChange={(e) => setMyPrice(e.target.value)}
+                    placeholder="السعر الذي تطلبه"
+                    className="flex-1 bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
+                  />
+                  <button onClick={() => void listMyself()} disabled={busy} className="px-4 py-2 rounded-lg text-sm font-bold bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-50">
+                    اعرض نفسي
+                  </button>
+                </div>
+              )}
+              {myError && <p role="alert" className="text-xs text-red-400 mt-2">{myError}</p>}
+            </div>
+          )}
+
           <div className="rounded-2xl border border-slate-800 bg-slate-900/60 p-4 mb-6">
             <div className="flex items-center gap-2 mb-3">
               <Search size={16} className="text-slate-500" />
@@ -264,34 +383,42 @@ export default function MarketPage({
               {filtered.length === 0 ? (
                 <div className="text-center py-8">
                   <Search size={24} className="mx-auto text-slate-600 mb-3" />
-                  <p className="text-sm font-bold text-slate-300">لا توجد لاعبون معروضون حالياً</p>
-                  <p className="text-xs text-slate-500 mt-1">عندما يعرض الرؤساء لاعبيهم للبيع سيظهرون هنا</p>
+                  <p className="text-sm font-bold text-slate-300">
+                    {!loaded && !loadError ? "جارٍ تحميل العروض..." : loadError ? "تعذّر الاتصال بالخادم. نعيد المحاولة تلقائيًا..." : "لا توجد لاعبون معروضون حالياً"}
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">عندما يعرض اللاعبون أنفسهم للبيع سيظهرون هنا</p>
                 </div>
               ) : (
                 filtered.map((l) => (
                   <div key={l.id} className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 hover:border-slate-700 transition-colors sm:px-4">
                     <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                       <div className="h-9 w-9 shrink-0 rounded-lg bg-slate-800 flex items-center justify-center text-cyan-300 font-extrabold text-sm sm:h-10 sm:w-10">
-                        {l.overall}
+                        {l.player.overall || "—"}
                       </div>
                       <div className="min-w-0">
-                        <p className="truncate text-sm font-bold text-slate-100">{l.player_name}</p>
-                        <button onClick={() => openClubProfile(l.club_id)} className="text-xs text-slate-500 hover:text-cyan-300 transition-colors">
-                          {l.club_name} · {POSITION_LABELS[l.position] || l.position}
-                        </button>
+                        <p className="truncate text-sm font-bold text-slate-100">{l.player.name}</p>
+                        {l.player.clubId ? (
+                          <button onClick={() => openClubProfile(l.player.clubId!)} className="text-xs text-slate-500 hover:text-cyan-300 transition-colors">
+                            {l.player.clubName} · {POSITION_LABELS[l.player.position ?? ""] || l.player.position || "غير محدد"}
+                          </button>
+                        ) : (
+                          <span className="text-xs text-slate-500">لاعب حر · {POSITION_LABELS[l.player.position ?? ""] || l.player.position || "غير محدد"}</span>
+                        )}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-                      <div className="hidden items-center gap-1 text-amber-300 font-bold text-sm sm:flex">
+                      <div className="flex items-center gap-1 text-amber-300 font-bold text-xs sm:text-sm">
                         <Wallet size={14} />
-                        {l.price.toLocaleString()}
+                        {money(l.price)}
                       </div>
-                      <button
-                        onClick={() => tryOffer(l)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
-                      >
-                        <ArrowRightLeft size={13} /> تقديم عرض
-                      </button>
+                      {auth?.id !== l.player.id && (
+                        <button
+                          onClick={() => tryBuy(l)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+                        >
+                          <ArrowRightLeft size={13} /> ضمّ اللاعب
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -299,41 +426,44 @@ export default function MarketPage({
             </div>
           </div>
 
-          {offerListing && (
-            <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => setOfferListing(null)}>
+          {buyTarget && (
+            <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4" onClick={() => !busy && setBuyTarget(null)}>
               <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm rounded-2xl border border-slate-800 bg-slate-900 p-6 relative">
                 <h2 className="text-lg font-extrabold text-white mb-1" style={{ fontFamily: "Cairo, sans-serif" }}>
-                  تقديم عرض لـ {offerListing.player_name}
+                  ضمّ {buyTarget.player.name}
                 </h2>
-                <p className="text-xs text-slate-400 mb-5">
-                  {offerListing.club_name} · {POSITION_LABELS[offerListing.position] || offerListing.position} · تقييم {offerListing.overall} · القيمة التقديرية {offerListing.price.toLocaleString()}
+                <p className="text-xs text-slate-400 mb-4">
+                  {buyTarget.player.clubName ?? "لاعب حر"} · {POSITION_LABELS[buyTarget.player.position ?? ""] || buyTarget.player.position || "غير محدد"} · تقييم {buyTarget.player.overall}
                 </p>
 
-                {offerSuccess ? (
-                  <div className="text-center py-6">
+                {buyDone ? (
+                  <div className="text-center py-4">
                     <TrendingUp size={32} className="mx-auto text-emerald-400 mb-3" />
-                    <p className="text-sm font-bold text-emerald-300">تم تقديم عرضك بنجاح!</p>
-                    <p className="text-xs text-slate-500 mt-1">سيتم إشعارك برد النادي المالك.</p>
+                    <p className="text-sm font-bold text-emerald-300">تمت الصفقة!</p>
+                    <p className="text-xs text-slate-400 mt-1">{buyDone}</p>
                   </div>
                 ) : (
                   <>
-                    <label className="block mb-4">
-                      <span className="text-xs text-slate-400 mb-1 block">مبلغ العرض</span>
-                      <input
-                        type="number"
-                        value={offerAmount}
-                        onChange={(e) => setOfferAmount(e.target.value)}
-                        placeholder={`${offerListing.price.toLocaleString()}`}
-                        className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
-                      />
-                    </label>
-                    {offerError && <p className="text-xs text-red-400 mb-3">{offerError}</p>}
+                    <div className="rounded-xl bg-slate-800/60 p-3 mb-4 text-xs space-y-1.5">
+                      <div className="flex justify-between"><span className="text-slate-400">السعر المطلوب</span><span className="font-bold text-amber-300">{money(buyTarget.price)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-400">يستلم اللاعب ({PLAYER_PERCENT}%)</span><span className="text-slate-200">{money(Math.floor((buyTarget.price * PLAYER_PERCENT) / 100))}</span></div>
+                      {buyTarget.player.clubId && (
+                        <div className="flex justify-between"><span className="text-slate-400">ناديه الحالي ({100 - PLAYER_PERCENT}%)</span><span className="text-slate-200">{money(buyTarget.price - Math.floor((buyTarget.price * PLAYER_PERCENT) / 100))}</span></div>
+                      )}
+                      {auth?.budget !== undefined && (
+                        <div className="flex justify-between border-t border-slate-700 pt-1.5"><span className="text-slate-400">ميزانية ناديك</span><span className="text-slate-200">{money(auth.budget)}</span></div>
+                      )}
+                    </div>
+                    {auth && auth.role !== "president" && (
+                      <p className="text-xs text-amber-300 mb-3">شراء اللاعبين متاح لرؤساء الأندية فقط.</p>
+                    )}
+                    {buyError && <p role="alert" className="text-xs text-red-400 mb-3">{buyError}</p>}
                     <div className="flex gap-2">
-                      <button onClick={() => setOfferListing(null)} className="flex-1 py-2.5 rounded-lg text-sm font-bold bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors">
+                      <button onClick={() => setBuyTarget(null)} disabled={busy} className="flex-1 py-2.5 rounded-lg text-sm font-bold bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors disabled:opacity-50">
                         إلغاء
                       </button>
-                      <button onClick={handleOffer} className="flex-1 py-2.5 rounded-lg text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors">
-                        تأكيد العرض
+                      <button onClick={() => void confirmBuy()} disabled={busy || auth?.role !== "president"} className="flex-1 py-2.5 rounded-lg text-sm font-bold bg-blue-600 hover:bg-blue-500 text-white transition-colors disabled:opacity-50">
+                        تأكيد الشراء
                       </button>
                     </div>
                   </>
