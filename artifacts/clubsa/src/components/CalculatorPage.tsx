@@ -5,8 +5,22 @@ import type { Position, Category, AuthUser, PlayerBuild } from "@/types";
 
 const MAX_STAT = 99;
 
-function budgetForLevel(level: number, type: string): number {
-  return type === "GK" ? Math.round(180 + level * 1.6) : Math.round(150 + level * 12);
+const MAX_LEVEL = 40;
+
+// نقاط الطاقة (AP) الإجمالية في FC 27 Pro Clubs: 100 عند المستوى 1 و962 عند المستوى 40.
+// المستوى 2 = 109 من لقطة اللعبة، والباقي من جدول المراحل (proclubshq). ما بين المراحل تقريبي.
+const AP_MILESTONES: Array<[number, number]> = [
+  [1, 100], [2, 109], [10, 224], [15, 301], [20, 397], [25, 511], [30, 674], [40, 962],
+];
+
+function budgetForLevel(level: number, _type: string): number {
+  const lv = Math.max(1, Math.min(MAX_LEVEL, level));
+  for (let i = 1; i < AP_MILESTONES.length; i++) {
+    const [l1, p1] = AP_MILESTONES[i];
+    const [l0, p0] = AP_MILESTONES[i - 1];
+    if (lv <= l1) return Math.round(p0 + ((p1 - p0) * (lv - l0)) / (l1 - l0));
+  }
+  return AP_MILESTONES[AP_MILESTONES.length - 1][1];
 }
 
 function bodyModifiers(height: number, weight: number, type: string): Record<string, number> {
@@ -207,7 +221,7 @@ export default function CalculatorPage({
   onSaveBuild?: (build: PlayerBuild) => void;
 }) {
   const [posId, setPosId] = useState("ST");
-  const [level, setLevel] = useState(50);
+  const [level, setLevel] = useState(MAX_LEVEL);
   const [height, setHeight] = useState(178);
   const [weight, setWeight] = useState(74);
   const [values, setValues] = useState<Record<string, number>>({});
@@ -332,8 +346,8 @@ export default function CalculatorPage({
       <div className="grid grid-cols-3 gap-3 mb-4">
         <label className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 flex flex-col gap-1">
           <span className="text-[11px] text-slate-400">اللفل (Level)</span>
-          <input type="number" min={1} max={99} value={level}
-            onChange={(e) => setLevel(Math.max(1, Math.min(99, Number(e.target.value) || 1)))}
+          <input type="number" min={1} max={MAX_LEVEL} value={level}
+            onChange={(e) => setLevel(Math.max(1, Math.min(MAX_LEVEL, Number(e.target.value) || 1)))}
             className="bg-transparent text-slate-100 font-bold outline-none tabular-nums" />
         </label>
         <label className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 flex flex-col gap-1">
@@ -350,7 +364,7 @@ export default function CalculatorPage({
         </label>
       </div>
       <p className="text-[11px] text-slate-500 mb-6">
-        اللفل يزيد رصيد نقاط الطاقة المتاحة، بينما الطول والوزن يمنحان أو يخصمان تلقائيًا من صفات محددة (القوة، الرشاقة، القفز، السرعة...) — الأرقام بين قوسين تُظهر أثر الجسم على الرقم الأساسي.
+        اللفل (الحد الأقصى 40 في FC 27) يزيد رصيد نقاط الطاقة المتاحة (100 عند اللفل 1 و962 عند 40، والقيم بين المراحل تقريبية)، بينما الطول والوزن يمنحان أو يخصمان تلقائيًا من صفات محددة (القوة، الرشاقة، القفز، السرعة...) — الأرقام بين قوسين تُظهر أثر الجسم على الرقم الأساسي.
       </p>
 
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-4 py-3 mb-6">
