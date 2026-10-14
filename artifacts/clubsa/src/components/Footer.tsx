@@ -2,10 +2,10 @@ import { Shield, FileText, Mail, Info } from "lucide-react";
 import type { LegalPage } from "@/components/LegalModal";
 
 export default function Footer({
-  onOpenLegal,
 }: {
-  onOpenLegal: (page: LegalPage) => void;
+  onOpenLegal?: (page: LegalPage) => void;
 }) {
+  // روابط حقيقية لصفحات ثابتة (يمكن لزواحف جوجل والمستخدمين فتحها مباشرة).
   const links: { page: LegalPage; label: string; icon: typeof Shield }[] = [
     { page: "about", label: "من نحن", icon: Info },
     { page: "privacy", label: "سياسة الخصوصية", icon: Shield },
@@ -24,14 +24,14 @@ export default function Footer({
 
           <nav className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
             {links.map((link) => (
-              <button
+              <a
                 key={link.page}
-                onClick={() => onOpenLegal(link.page)}
+                href={`/${link.page}`}
                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-cyan-300 transition-colors font-bold"
               >
                 <link.icon size={14} />
                 {link.label}
-              </button>
+              </a>
             ))}
           </nav>
         </div>
