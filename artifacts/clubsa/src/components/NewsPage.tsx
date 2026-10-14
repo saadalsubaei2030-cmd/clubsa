@@ -217,20 +217,6 @@ function ArchetypeCard({ name, highlight }: { name: string; highlight?: boolean 
 
       <p className="mt-3 text-sm leading-relaxed text-slate-300">{a.pick}</p>
 
-      {a.stats.length > 0 && (
-        <div className="mt-5 space-y-2.5" aria-label="أسقف الصفات التقريبية">
-          {a.stats.map((s) => (
-            <div key={s.label} className="flex items-center gap-3">
-              <span className="w-12 shrink-0 text-xs font-bold text-slate-400">{s.label}</span>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800">
-                <div className="h-full rounded-full bg-gradient-to-l from-cyan-300 to-blue-500" style={{ width: `${s.value}%` }} />
-              </div>
-              <span className="w-7 shrink-0 text-xs tabular-nums text-slate-300">{s.value}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
       <ul className="mt-5 space-y-2">
         {a.strengths.map((s, i) => (
           <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-slate-300">
