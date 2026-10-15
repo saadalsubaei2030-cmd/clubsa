@@ -4,7 +4,6 @@ import clubsaRouter from "./clubsa";
 import publicChatRouter from "./public-chat";
 import socialRouter from "./social";
 import marketRouter from "./market";
-import lfgRouter from "./lfg";
 
 const router: IRouter = Router();
 
@@ -12,7 +11,6 @@ router.use(healthRouter);
 router.use(publicChatRouter);
 router.use(socialRouter);
 router.use(marketRouter);
-router.use(lfgRouter);
 router.use(clubsaRouter);
 
 export default router;
