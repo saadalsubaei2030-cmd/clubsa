@@ -13,6 +13,7 @@ export const TABS: Tab[] = [
   { id: "calculator", label: "حاسبة الطاقات" },
   { id: "tournaments", label: "البطولات" },
   { id: "market", label: "سوق الانتقالات" },
+  { id: "lfg", label: "الفرص" },
   { id: "leaderboards", label: "الإحصائيات" },
   { id: "news", label: "الأخبار والدليل" },
 ];
