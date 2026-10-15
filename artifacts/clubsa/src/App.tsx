@@ -9,6 +9,7 @@ import TournamentsPage from "@/components/TournamentsPage";
 import ChatPage from "@/components/ChatPage";
 import MarketPage from "@/components/MarketPage";
 import NewsPage from "@/components/NewsPage";
+import LfgPage from "@/components/LfgPage";
 import LeaderboardsPage from "@/components/LeaderboardsPage";
 import PlayerProfilePage from "@/components/PlayerProfilePage";
 import ClubProfilePage from "@/components/ClubProfilePage";
@@ -227,6 +228,7 @@ export default function App() {
             {tab === "tournaments" && <TournamentsPage />}
             {tab === "chat" && <ChatPage auth={auth} onRequireLogin={handleRequireLogin} />}
             {tab === "market" && <MarketPage auth={auth} onRequireLogin={handleRequireLogin} onOpenClubProfile={openClubProfile} onAuthRefresh={(uid) => { const next = fetchProfile(uid); if (next) setUser(next); }} />}
+            {tab === "lfg" && <LfgPage auth={auth} onRequireLogin={handleRequireLogin} />}
             {tab === "news" && <NewsPage />}
             {tab === "leaderboards" && <LeaderboardsPage />}
           </>
