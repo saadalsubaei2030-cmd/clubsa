@@ -66,7 +66,7 @@ export function marketErrorText(error: unknown): string {
     }
     if (error.status === 429) return "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.";
     if (error.status === 401) return "تعذّر ربط حسابك بالخادم. أعد تحميل الصفحة وحاول مرة أخرى.";
-    if (error.status === 404) return "الخادم لم يُحدَّث بعد. أعد نشره على Replit ثم حاول مجددًا.";
+    if (error.status === 404) return "هذه الخدمة غير متاحة حاليًا. حاول بعد قليل.";
   }
   return "تعذّر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.";
 }
