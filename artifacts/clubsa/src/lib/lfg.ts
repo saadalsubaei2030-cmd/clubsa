@@ -65,7 +65,7 @@ export function closeLfgPost(userId: string, postId: number) {
 export function lfgErrorText(error: unknown): string {
   if (error instanceof SocialError) {
     if (error.status === 429) return "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.";
-    if (error.status === 404 && error.code !== "not_found") return "الخادم لم يُحدَّث بعد. أعد نشر الخادم على Replit ثم حاول مجددًا.";
+    if (error.status === 404 && error.code !== "not_found") return "هذه الخدمة غير متاحة حاليًا. حاول بعد قليل.";
     if (error.code === "players_only") return "هذا النوع من المنشورات للاعبين فقط.";
     if (error.code === "presidents_only") return "هذا النوع من المنشورات لرؤساء الأندية الذين لديهم نادٍ.";
     if (error.code === "too_many_posts") return "وصلت للحد الأقصى (3 منشورات مفتوحة). احذف واحدًا ثم حاول.";

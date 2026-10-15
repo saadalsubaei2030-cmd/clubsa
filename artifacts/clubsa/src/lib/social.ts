@@ -306,7 +306,7 @@ export function socialErrorText(error: unknown): string {
   if (error instanceof SocialError) {
     if (error.status === 429) return "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.";
     if (error.status === 404 && error.code === "not_found") return "لم نجد هذا الحساب. ربما لم يسجّل دخوله بعد.";
-    if (error.status === 404) return "الخادم لم يُحدَّث بعد. أعد نشر الخادم على Replit ثم حاول مجددًا.";
+    if (error.status === 404) return "هذه الخدمة غير متاحة حاليًا. حاول بعد قليل.";
     if (error.status === 401) return "تعذّر ربط حسابك بالخادم. أعد تحميل الصفحة وحاول مرة أخرى.";
     if (error.status === 403) return "هذا الحساب مرتبط بمتصفح آخر ولا يمكن استخدامه من هنا.";
     if (error.status === 400 && error.code === "invalid_text") return "الرسالة فارغة أو أطول من 1000 حرف.";
