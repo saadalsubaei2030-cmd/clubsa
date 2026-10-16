@@ -11,7 +11,7 @@ export const REGIONS = [
 export const TABS: Tab[] = [
   { id: "chat", label: "الشات" },
   { id: "calculator", label: "حاسبة الطاقات" },
-  { id: "tournaments", label: "البطولات" },
+  { id: "tournaments", label: "البطولات (قريبًا)" },
   { id: "market", label: "سوق الانتقالات" },
   { id: "leaderboards", label: "الإحصائيات" },
   { id: "news", label: "الأخبار والدليل" },
