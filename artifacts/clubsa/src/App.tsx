@@ -5,7 +5,7 @@ import { useSocialSync } from "@/hooks/useSocialSync";
 import { useMarketSync } from "@/hooks/useMarketSync";
 import Navbar from "@/components/Navbar";
 import CalculatorPage from "@/components/CalculatorPage";
-import TournamentsPage from "@/components/TournamentsPage";
+import ComingSoonPage from "@/components/ComingSoonPage";
 import ChatPage from "@/components/ChatPage";
 import MarketPage from "@/components/MarketPage";
 import NewsPage from "@/components/NewsPage";
@@ -224,7 +224,7 @@ export default function App() {
         ) : (
           <>
             {tab === "calculator" && <CalculatorPage auth={auth} onRequireLogin={handleRequireLogin} onSaveBuild={(build) => auth && saveBuild(auth.id, build)} />}
-            {tab === "tournaments" && <TournamentsPage />}
+            {tab === "tournaments" && <ComingSoonPage title="البطولات" text="نجهّز لكم بطولات الأندية مع الجداول والنتائج. تابعونا." />}
             {tab === "chat" && <ChatPage auth={auth} onRequireLogin={handleRequireLogin} />}
             {tab === "market" && <MarketPage auth={auth} onRequireLogin={handleRequireLogin} onOpenClubProfile={openClubProfile} onAuthRefresh={(uid) => { const next = fetchProfile(uid); if (next) setUser(next); }} />}
             {tab === "news" && <NewsPage />}
