@@ -6,9 +6,13 @@ import type { RemoteListing } from "@/lib/market";
 import { POSITION_LABELS } from "@/data";
 import type { AuthUser, ClubProfile, PlayerProfile } from "@/types";
 
+// السوق مفتوح طوال الأسبوع حاليًا. لإرجاع نافذة الخميس إلى السبت اجعلها false.
+const MARKET_ALWAYS_OPEN = true;
+
 const MERCATO_DAYS = [4, 5, 6];
 
 function isMercatoOpen(): boolean {
+  if (MARKET_ALWAYS_OPEN) return true;
   return MERCATO_DAYS.includes(new Date().getDay());
 }
 
@@ -304,10 +308,15 @@ export default function MarketPage({
           {open ? "سوق الانتقالات مفتوح الآن" : "سوق الانتقالات مغلق"}
         </h1>
         <p className="text-slate-400 text-sm">
-          {open ? "الميركاتو مفتوح من الخميس إلى السبت — يمكنك التداول والبحث الآن." : "يفتح الميركاتو من الخميس إلى السبت — تابع العداد التنازلي."}
+          {MARKET_ALWAYS_OPEN
+            ? "السوق مفتوح طوال الأسبوع — اعرض نفسك أو ضمّ لاعبين في أي وقت."
+            : open
+              ? "الميركاتو مفتوح من الخميس إلى السبت — يمكنك التداول والبحث الآن."
+              : "يفتح الميركاتو من الخميس إلى السبت — تابع العداد التنازلي."}
         </p>
       </div>
 
+      {!MARKET_ALWAYS_OPEN && (
       <div className={`rounded-2xl border bg-slate-900/60 p-6 sm:p-8 mb-6 ${open ? "border-emerald-500/30" : "border-slate-800"}`}>
         <div className="flex items-center justify-center gap-2 mb-6">
           <Clock size={16} className={open ? "text-emerald-400" : "text-cyan-400"} />
@@ -331,6 +340,7 @@ export default function MarketPage({
           <p className="text-sm font-bold text-slate-200 mt-1">{targetLabel}</p>
         </div>
       </div>
+      )}
 
       {open ? (
         <>
