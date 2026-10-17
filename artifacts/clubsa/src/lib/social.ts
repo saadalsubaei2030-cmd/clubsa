@@ -23,6 +23,7 @@ export type SocialUser = {
   clubName: string | null;
   isFreeAgent: boolean;
   avatar?: string | null;
+  clubRank?: "member" | "vice" | "scout";
 };
 
 export type SocialClub = {

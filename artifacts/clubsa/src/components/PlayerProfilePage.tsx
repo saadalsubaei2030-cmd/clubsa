@@ -6,6 +6,7 @@ import { getProfilePath } from "@/lib/mockData";
 import type { AuthUser, ClubInvite, PlayerBuild } from "@/types";
 import PendingClubInvites from "@/components/PendingClubInvites";
 import ClubRosterSection from "@/components/ClubRosterSection";
+import { canManageClub } from "@/lib/permissions";
 
 const STAT_KEYS = ["PAC", "SHO", "PAS", "DRI", "DEF", "PHY"] as const;
 const STAT_LABELS: Record<string, string> = {
@@ -126,7 +127,7 @@ export default function PlayerProfilePage({
   const displayedPlayStylePlus = editingStats ? manualPlayStylePlus : (build?.playStylePlus || "");
   const displayedPlayStyles = editingStats ? manualPlayStyles : (build?.playStyles || []);
   const canInviteToClub = isPublic &&
-    (viewer?.role === "president" || viewer?.role === "scout") &&
+    canManageClub(viewer) &&
     Boolean(viewer.clubId) &&
     auth.role === "player" &&
     viewer.id !== auth.id &&

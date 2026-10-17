@@ -44,6 +44,7 @@ export type MockProfile = {
   overall: number;
   avatar: string | null;
   balance: number;
+  club_rank?: string;
   player_build?: PlayerBuild | null;
 };
 
@@ -616,6 +617,7 @@ export function submitOffer(
 export type MarketState = {
   balance: number | null;
   club: { id: string; budget: number } | null;
+  rank?: string;
   assignment: {
     clubId: string;
     clubName: string;
@@ -661,6 +663,10 @@ export function applyMarketState(userId: string, state: MarketState): boolean {
     user.club_id = a.clubId;
     user.is_free_agent = false;
     user.join_status = "approved";
+    changed = true;
+  }
+  if (state.rank !== undefined && (user.club_rank ?? "member") !== state.rank) {
+    user.club_rank = state.rank;
     changed = true;
   }
   if (changed) saveUsers(users);

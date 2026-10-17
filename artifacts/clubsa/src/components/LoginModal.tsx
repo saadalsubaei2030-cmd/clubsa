@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, ChevronLeft, AlertCircle, Shield, User, Loader2, Search } from "lucide-react";
+import { X, ChevronLeft, AlertCircle, Shield, User, Loader2 } from "lucide-react";
 import { REGIONS } from "@/data";
 import type { AuthUser, UserRole } from "@/types";
 import { validateLoginEmail, validateRegistrationEmail } from "@/lib/emailValidation";
@@ -241,7 +241,7 @@ export default function LoginModal({
 
               <div>
                 <span className="text-xs text-slate-400 mb-2 block">اختر دورك</span>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => { setRole("president"); setIsFreeAgent(false); setClub(""); }}
                     className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-xl border-2 transition-colors ${
@@ -259,15 +259,6 @@ export default function LoginModal({
                   >
                     <User size={20} className={role === "player" ? "text-cyan-400" : "text-slate-500"} />
                     <span className={`text-xs font-bold ${role === "player" ? "text-cyan-300" : "text-slate-400"}`}>لاعب عادي</span>
-                  </button>
-                  <button
-                    onClick={() => { setRole("scout"); setIsFreeAgent(false); }}
-                    className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-3 transition-colors ${
-                      role === "scout" ? "border-amber-500 bg-amber-500/10" : "border-slate-700 bg-slate-800/60 hover:border-slate-600"
-                    }`}
-                  >
-                    <Search size={20} className={role === "scout" ? "text-amber-400" : "text-slate-500"} />
-                    <span className={`text-xs font-bold ${role === "scout" ? "text-amber-300" : "text-slate-400"}`}>كشاف</span>
                   </button>
                 </div>
               </div>
@@ -294,19 +285,19 @@ export default function LoginModal({
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
                   />
                 </label>
-              ) : (role === "player" && !isFreeAgent) || role === "scout" ? (
+              ) : role === "player" && !isFreeAgent ? (
                 <label className="block">
                   <span className="text-xs text-slate-400 mb-1 block">
-                    {role === "scout" ? "النادي الذي تعمل معه" : "النادي المترشح له"}
+                    النادي المترشح له
                   </span>
                   <input
                     value={club}
                     onChange={(e) => setClub(e.target.value)}
-                    placeholder={role === "scout" ? "اكتب اسم النادي" : "اكتب اسم النادي"}
+                    placeholder="اكتب اسم النادي"
                     className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
                   />
                   <p className="text-[11px] text-amber-400/80 mt-1">
-                    {role === "scout" ? "سيعمل الكشاف بصلاحية دعوة اللاعبين وتقديم عروض السوق." : "ستكون حالة انضمامك: بانتظار موافقة رئيس النادي"}
+                    ستكون حالة انضمامك: بانتظار موافقة رئيس النادي
                   </p>
                 </label>
               ) : null}
