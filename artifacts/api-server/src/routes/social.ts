@@ -367,7 +367,8 @@ router.get(
     if (!club) return fail(res, 404, "not_found");
 
     const roster = await pool.query<UserRow>(
-      `SELECT ${USER_COLS} FROM clubsa_social_users WHERE club_id = $1 ORDER BY overall DESC, name LIMIT 50`,
+      `SELECT ${USER_COLS}, CASE WHEN length(avatar) <= 20000 THEN avatar END AS avatar
+       FROM clubsa_social_users WHERE club_id = $1 ORDER BY overall DESC, name LIMIT 50`,
       [clubId],
     );
     const president = (await usersByIds([club.president_id])).get(club.president_id) ?? null;
