@@ -1,7 +1,20 @@
+import { useEffect, useState } from "react";
 import { Crown, Search, Shield, UserPlus, UserRound } from "lucide-react";
 import { getClubById, getClubPlayers } from "@/lib/mockData";
+import { SocialError, getSocialClub, type SocialClub, type SocialUser } from "@/lib/social";
 import { ROLE_LABELS } from "@/data";
 import type { AuthUser } from "@/types";
+
+// عضو بالشكل الموحّد: يأتي من الخادم العام، أو من حسابات هذا المتصفح إذا تعذّر الاتصال.
+type Member = {
+  id: string;
+  name: string;
+  avatar: string | null;
+  eaId: string | null;
+  role: AuthUser["role"];
+  overall: number;
+  stats: Record<string, number> | null;
+};
 
 function roleLabel(role: AuthUser["role"]) {
   return ROLE_LABELS[role] || ROLE_LABELS.player;
@@ -13,8 +26,21 @@ function roleBadgeClass(role: AuthUser["role"]) {
   return "border-cyan-400/30 bg-cyan-500/10 text-cyan-200";
 }
 
-function metricValue(player: ReturnType<typeof getClubPlayers>[number], key: string) {
-  return player.player_build?.stats?.[key] ?? player.overall ?? 0;
+// الإحصائيات التفصيلية (التسديد، التمرير...) محفوظة في متصفح اللاعب فقط، فنستخدمها إذا توفرت.
+function metricValue(player: Member, key: string) {
+  return player.stats?.[key] ?? 0;
+}
+
+function fromServer(user: SocialUser, localStats: Record<string, number> | null): Member {
+  return {
+    id: user.id,
+    name: user.name,
+    avatar: user.avatar ?? null,
+    eaId: user.eaId,
+    role: user.role,
+    overall: user.overall,
+    stats: localStats,
+  };
 }
 
 export default function ClubRosterSection({
@@ -26,10 +52,66 @@ export default function ClubRosterSection({
   viewer?: AuthUser | null;
   onOpenInvitePlayer?: () => void;
 }) {
-  const club = getClubById(clubId);
-  if (!club) return null;
+  const [remote, setRemote] = useState<{ club: SocialClub; roster: SocialUser[] } | null>(null);
+  const [missing, setMissing] = useState(false);
 
-  const members = getClubPlayers(club.id).filter((member) => member.name.trim());
+  useEffect(() => {
+    let cancelled = false;
+    let controller: AbortController | null = null;
+    setRemote(null);
+    setMissing(false);
+
+    const load = async () => {
+      controller?.abort();
+      controller = new AbortController();
+      try {
+        const data = await getSocialClub(clubId, controller.signal);
+        if (!cancelled) setRemote({ club: data.club, roster: data.roster });
+      } catch (error) {
+        if (cancelled || controller.signal.aborted) return;
+        if (error instanceof SocialError && error.status === 404 && error.code === "not_found") setMissing(true);
+        // غير ذلك: الخادم غير متاح، نبقي آخر نتيجة أو البيانات المحلية.
+      }
+    };
+
+    void load();
+    const timer = window.setInterval(() => void load(), 20000);
+    return () => {
+      cancelled = true;
+      controller?.abort();
+      window.clearInterval(timer);
+    };
+  }, [clubId]);
+
+  const localClub = getClubById(clubId);
+  const localPlayers = getClubPlayers(clubId).filter((member) => member.name.trim());
+  const statsById = new Map(localPlayers.map((p) => [p.id, (p.player_build?.stats as Record<string, number> | undefined) ?? null]));
+
+  const club = remote
+    ? { id: remote.club.id, name: remote.club.name, region: remote.club.region, logo: remote.club.logo ?? null }
+    : localClub
+      ? { id: localClub.id, name: localClub.name, region: localClub.region, logo: localClub.logo ?? null }
+      : null;
+
+  if (!club) {
+    return missing ? (
+      <div className="mt-5 rounded-2xl border border-dashed border-slate-800 py-10 text-center">
+        <p className="text-sm font-bold text-slate-300">النادي غير موجود</p>
+      </div>
+    ) : null;
+  }
+
+  const members: Member[] = remote
+    ? remote.roster.filter((user) => user.name.trim()).map((user) => fromServer(user, statsById.get(user.id) ?? null))
+    : localPlayers.map((p) => ({
+        id: p.id,
+        name: p.name,
+        avatar: p.avatar,
+        eaId: p.ea_id ?? null,
+        role: p.role,
+        overall: p.overall,
+        stats: (p.player_build?.stats as Record<string, number> | undefined) ?? null,
+      }));
   const canManageInvites =
     viewer?.clubId === club.id &&
     (viewer.role === "president" || viewer.role === "scout");
@@ -40,9 +122,10 @@ export default function ClubRosterSection({
     { label: "أكثر مراوغة", icon: "◈", key: "DRI", color: "text-amber-300", border: "border-amber-400/20", background: "bg-amber-500/10" },
   ].map((stat) => ({
     ...stat,
-    player: regularPlayers.length
-      ? [...regularPlayers].sort((a, b) => metricValue(b, stat.key) - metricValue(a, stat.key))[0]
-      : null,
+    player:
+      [...regularPlayers]
+        .filter((member) => metricValue(member, stat.key) > 0)
+        .sort((a, b) => metricValue(b, stat.key) - metricValue(a, stat.key))[0] ?? null,
   }));
 
   return (
@@ -105,7 +188,7 @@ export default function ClubRosterSection({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-extrabold text-slate-100">{member.name}</p>
-                  <p className="mt-1 truncate text-xs text-slate-500">{member.ea_id || "EA ID غير محدد"}</p>
+                  <p className="mt-1 truncate text-xs text-slate-500">{member.eaId || "EA ID غير محدد"}</p>
                 </div>
                 <span className={`shrink-0 rounded-lg border px-2 py-1 text-[10px] font-extrabold ${roleBadgeClass(member.role)}`}>
                   {member.role === "president" && <Crown size={11} className="ml-1 inline-block" />}
