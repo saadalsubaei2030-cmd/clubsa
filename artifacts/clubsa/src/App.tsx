@@ -3,6 +3,9 @@ import { useGoogleFonts } from "@/hooks/useGoogleFonts";
 import { useAuth } from "@/hooks/useAuth";
 import { useSocialSync } from "@/hooks/useSocialSync";
 import { useMarketSync } from "@/hooks/useMarketSync";
+import { useClubInvites } from "@/hooks/useClubInvites";
+import { respondToServerInvite, sendClubInvite, toClubInvite } from "@/lib/invites";
+import { ackAssignment, getMarketState } from "@/lib/market";
 import Navbar from "@/components/Navbar";
 import CalculatorPage from "@/components/CalculatorPage";
 import ComingSoonPage from "@/components/ComingSoonPage";
@@ -21,13 +24,7 @@ import ClubInviteModal from "@/components/ClubInviteModal";
 import InvitePlayerModal from "@/components/InvitePlayerModal";
 import type { LegalPage } from "@/components/LegalModal";
 import type { TabId } from "@/types";
-import {
-  createClubInvite,
-  getClubInviteStatus,
-  getPendingClubInvites,
-  getPublicAuthUserByUsername,
-  respondToClubInvite,
-} from "@/lib/mockData";
+import { applyMarketState, getPublicAuthUserByUsername } from "@/lib/mockData";
 
 function getPublicProfileSlugFromPath(): string | null {
   const match = window.location.pathname.match(/\/profile\/([^/]+)\/?$/);
@@ -75,7 +72,7 @@ export default function App() {
   const [publicProfileSlug, setPublicProfileSlug] = useState<string | null>(() => getPublicProfileSlugFromPath());
   const [invitesOpen, setInvitesOpen] = useState(false);
   const [invitePlayerOpen, setInvitePlayerOpen] = useState(false);
-  const [inviteRefresh, setInviteRefresh] = useState(0);
+  const { incoming, sent, refresh: refreshInvites } = useClubInvites(auth);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -90,10 +87,7 @@ export default function App() {
 
   const publicProfile = publicProfileSlug ? getPublicAuthUserByUsername(publicProfileSlug) : null;
   const activeClubId = clubProfileId || (clubPathOpen ? auth?.clubId || null : null);
-  const pendingInvites = useMemo(
-    () => (auth ? getPendingClubInvites(auth.id) : []),
-    [auth?.id, inviteRefresh],
-  );
+  const pendingInvites = useMemo(() => incoming.map(toClubInvite), [incoming]);
 
   const navigateHome = () => {
     window.history.pushState({}, "", getAppHomePath());
@@ -113,18 +107,33 @@ export default function App() {
 
   const handleInviteToClub = () => {
     if (!auth || !publicProfile || !["president", "scout"].includes(auth.role) || !auth.clubId || publicProfile.role !== "player") return;
-    createClubInvite(auth.id, publicProfile.id, auth.clubId);
-    setInviteRefresh((value) => value + 1);
+    void sendClubInvite(auth.id, publicProfile.id)
+      .then(() => refreshInvites())
+      .catch(() => undefined);
   };
 
-  const handleRespondToInvite = (inviteId: string, status: "accepted" | "declined") => {
+  const handleRespondToInvite = async (inviteId: string, status: "accepted" | "declined") => {
     if (!auth) return;
-    if (!respondToClubInvite(inviteId, auth.id, status)) return;
-    if (status === "accepted") {
-      const refreshedUser = fetchProfile(auth.id);
-      if (refreshedUser) setUser(refreshedUser);
+    try {
+      await respondToServerInvite(auth.id, Number(inviteId), status);
+    } catch {
+      await refreshInvites();
+      return;
     }
-    setInviteRefresh((value) => value + 1);
+    if (status === "accepted") {
+      // النادي الجديد يصل من الخادم؛ نطبّقه فورًا بدل انتظار الدورة التالية.
+      try {
+        const state = await getMarketState(auth.id);
+        if (applyMarketState(auth.id, state)) {
+          const refreshedUser = fetchProfile(auth.id);
+          if (refreshedUser) setUser(refreshedUser);
+        }
+        if (state.assignment) await ackAssignment(auth.id).catch(() => undefined);
+      } catch {
+        // دورة المزامنة العادية ستلتقطه بعد قليل
+      }
+    }
+    await refreshInvites();
   };
 
   const handleLogout = () => {
@@ -175,7 +184,7 @@ export default function App() {
               auth={publicProfile}
               isPublic
               viewer={auth}
-              inviteStatus={auth?.clubId ? getClubInviteStatus(auth.id, publicProfile.id, auth.clubId) : null}
+              inviteStatus={auth?.clubId ? sent.find((i) => i.toUserId === publicProfile.id && i.clubId === auth.clubId)?.status ?? null : null}
               onInviteToClub={handleInviteToClub}
               onBack={navigateHome}
               onSaveAvatar={() => undefined}
@@ -258,7 +267,7 @@ export default function App() {
         <InvitePlayerModal
           auth={auth}
           onClose={() => setInvitePlayerOpen(false)}
-          onInviteSent={() => setInviteRefresh((value) => value + 1)}
+          onInviteSent={() => void refreshInvites()}
         />
       )}
       {legalPage && <LegalModal page={legalPage} onClose={() => setLegalPage(null)} />}

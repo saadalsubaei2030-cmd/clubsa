@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
 import { Search, Send, Shield, X } from "lucide-react";
-import { createClubInvite, searchPlayersForInvite } from "@/lib/mockData";
+import { useInviteSearch } from "@/hooks/useInviteSearch";
 import type { AuthUser } from "@/types";
 
 export default function InvitePlayerModal({
@@ -12,24 +11,7 @@ export default function InvitePlayerModal({
   onClose: () => void;
   onInviteSent: () => void;
 }) {
-  const [query, setQuery] = useState("");
-  const [message, setMessage] = useState("");
-  const candidates = useMemo(
-    () => (auth.clubId ? searchPlayersForInvite(query, auth.clubId) : []),
-    [auth.clubId, query],
-  );
-
-  const sendInvite = (playerId: string, playerName: string) => {
-    if (!auth.clubId) return;
-    const invite = createClubInvite(auth.id, playerId, auth.clubId);
-    if (!invite) {
-      setMessage("تعذر إرسال الدعوة. حاول مرة أخرى.");
-      return;
-    }
-    setMessage(`تم إرسال الدعوة إلى ${playerName}`);
-    setQuery("");
-    onInviteSent();
-  };
+  const { query, updateQuery, results: candidates, searching, message, busyId, invite } = useInviteSearch(auth, onInviteSent);
 
   return (
     <div
@@ -67,10 +49,7 @@ export default function InvitePlayerModal({
           <input
             autoFocus
             value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setMessage("");
-            }}
+            onChange={(event) => updateQuery(event.target.value)}
             placeholder="اكتب EA ID أو Username..."
             className="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 pr-10 pl-3 text-sm text-slate-100 outline-none transition-colors placeholder:text-slate-600 focus:border-cyan-400"
           />
@@ -78,7 +57,9 @@ export default function InvitePlayerModal({
 
         {query.trim() && (
           <div className="mt-3 space-y-2">
-            {candidates.length === 0 ? (
+            {searching ? (
+              <p className="px-3 py-4 text-center text-xs text-slate-500">جاري البحث...</p>
+            ) : candidates.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-700 px-3 py-6 text-center">
                 <p className="text-sm font-bold text-slate-300">لم يتم العثور على لاعب</p>
                 <p className="mt-1 text-xs text-slate-500">تأكد من كتابة EA ID أو Username بشكل صحيح.</p>
@@ -99,13 +80,14 @@ export default function InvitePlayerModal({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-extrabold text-slate-100">{player.name}</p>
                     <p className="truncate text-[11px] text-slate-500">
-                      @{player.username || "player"} · {player.ea_id || "EA ID غير محدد"}
+                      @{player.username || "player"} · {player.eaId || "EA ID غير محدد"}
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => sendInvite(player.id, player.name)}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-2 text-xs font-extrabold text-slate-950 transition-colors hover:bg-cyan-400"
+                    onClick={() => void invite(player)}
+                    disabled={busyId === player.id}
+                    className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-cyan-500 px-3 py-2 text-xs font-extrabold text-slate-950 transition-colors hover:bg-cyan-400 disabled:opacity-60"
                   >
                     <Send size={13} /> دعوة
                   </button>
@@ -116,7 +98,13 @@ export default function InvitePlayerModal({
         )}
 
         {message && (
-          <p className="mt-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-xs font-bold text-emerald-300">{message}</p>
+          <p
+            className={`mt-3 rounded-lg px-3 py-2 text-xs font-bold ${
+              message.ok ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300"
+            }`}
+          >
+            {message.text}
+          </p>
         )}
 
         <button
