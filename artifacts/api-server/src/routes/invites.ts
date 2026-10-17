@@ -137,13 +137,14 @@ router.post(
     if (typeof toUserId !== "string" || !toUserId || toUserId.length > 100) return fail(res, 400, "invalid_target");
     if (toUserId === id) return fail(res, 400, "invalid_target");
 
-    const sender = await pool.query<{ role: string; club_id: string | null }>(
-      "SELECT role, club_id FROM clubsa_social_users WHERE id = $1",
+    const sender = await pool.query<{ role: string; club_id: string | null; club_rank: string }>(
+      "SELECT role, club_id, club_rank FROM clubsa_social_users WHERE id = $1",
       [id],
     );
     const from = sender.rows[0];
     if (!from) return fail(res, 401, "unauthorized");
-    if (!["president", "scout"].includes(from.role) || !from.club_id) return fail(res, 403, "managers_only");
+    const canInvite = from.role === "president" || from.role === "scout" || ["vice", "scout"].includes(from.club_rank);
+    if (!canInvite || !from.club_id) return fail(res, 403, "managers_only");
 
     const club = await pool.query("SELECT 1 FROM clubsa_social_clubs WHERE id = $1", [from.club_id]);
     if (!club.rowCount) return fail(res, 409, "club_not_synced");
@@ -201,7 +202,7 @@ router.post(
           return fail(res, 409, "club_not_synced");
         }
         await client.query(
-          "UPDATE clubsa_social_users SET club_id = $1, club_name = $2, is_free_agent = false, updated_at = now() WHERE id = $3",
+          "UPDATE clubsa_social_users SET club_id = $1, club_name = $2, is_free_agent = false, club_rank = 'member', updated_at = now() WHERE id = $3",
           [invite.club_id, club.rows[0].name, userId],
         );
         // نفس آلية السوق: المتصفح يلتقط النادي الجديد ثم يؤكد الاستلام.

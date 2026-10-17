@@ -147,7 +147,8 @@ router.get(
       }
     }
 
-    res.json({ balance, club, assignment });
+    const rankRow = await pool.query<{ club_rank: string }>("SELECT club_rank FROM clubsa_social_users WHERE id = $1", [id]);
+    res.json({ balance, club, assignment, rank: rankRow.rows[0]?.club_rank ?? "member" });
   }),
 );
 
@@ -333,7 +334,7 @@ router.post(
         );
       }
       await client.query(
-        "UPDATE clubsa_social_users SET club_id = $1, club_name = $2, is_free_agent = false, updated_at = now() WHERE id = $3",
+        "UPDATE clubsa_social_users SET club_id = $1, club_name = $2, is_free_agent = false, club_rank = 'member', updated_at = now() WHERE id = $3",
         [club.id, club.name, playerId],
       );
       await client.query(

@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSocialSync } from "@/hooks/useSocialSync";
 import { useMarketSync } from "@/hooks/useMarketSync";
 import { useClubInvites } from "@/hooks/useClubInvites";
+import { canManageClub } from "@/lib/permissions";
 import { respondToServerInvite, sendClubInvite, toClubInvite } from "@/lib/invites";
 import { ackAssignment, getMarketState } from "@/lib/market";
 import Navbar from "@/components/Navbar";
@@ -106,7 +107,7 @@ export default function App() {
   };
 
   const handleInviteToClub = () => {
-    if (!auth || !publicProfile || !["president", "scout"].includes(auth.role) || !auth.clubId || publicProfile.role !== "player") return;
+    if (!auth || !publicProfile || !canManageClub(auth) || publicProfile.role !== "player") return;
     void sendClubInvite(auth.id, publicProfile.id)
       .then(() => refreshInvites())
       .catch(() => undefined);
@@ -263,7 +264,7 @@ export default function App() {
           onRespond={handleRespondToInvite}
         />
       )}
-      {invitePlayerOpen && auth && ["president", "scout"].includes(auth.role) && auth.clubId && (
+      {invitePlayerOpen && auth && canManageClub(auth) && (
         <InvitePlayerModal
           auth={auth}
           onClose={() => setInvitePlayerOpen(false)}

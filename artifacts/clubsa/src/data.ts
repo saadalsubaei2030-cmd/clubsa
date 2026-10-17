@@ -17,6 +17,12 @@ export const TABS: Tab[] = [
   { id: "news", label: "الأخبار والدليل" },
 ];
 
+export const RANK_LABELS: Record<"member" | "vice" | "scout", string> = {
+  member: "لاعب عادي",
+  vice: "نائب النادي",
+  scout: "كشاف",
+};
+
 export const ROLE_LABELS: Record<UserRole, string> = {
   president: "رئيس النادي",
   scout: "الكشاف",

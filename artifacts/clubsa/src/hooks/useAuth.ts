@@ -55,6 +55,7 @@ export function useAuth() {
       budget,
       balance,
       playerBuild: profile.player_build || null,
+      clubRank: (profile.club_rank as AuthUser["clubRank"]) || undefined,
     };
   }
 

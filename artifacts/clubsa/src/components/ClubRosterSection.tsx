@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Crown, Search, Shield, UserPlus, UserRound } from "lucide-react";
 import { getClubById, getClubPlayers } from "@/lib/mockData";
 import { SocialError, getSocialClub, type SocialClub, type SocialUser } from "@/lib/social";
-import { ROLE_LABELS } from "@/data";
-import type { AuthUser } from "@/types";
+import { RANK_LABELS, ROLE_LABELS } from "@/data";
+import { canManageClub } from "@/lib/permissions";
+import { rankErrorText, setClubRank } from "@/lib/ranks";
+import type { AuthUser, ClubRank } from "@/types";
 
 // عضو بالشكل الموحّد: يأتي من الخادم العام، أو من حسابات هذا المتصفح إذا تعذّر الاتصال.
 type Member = {
@@ -12,17 +14,21 @@ type Member = {
   avatar: string | null;
   eaId: string | null;
   role: AuthUser["role"];
+  rank: ClubRank;
   overall: number;
   stats: Record<string, number> | null;
 };
 
-function roleLabel(role: AuthUser["role"]) {
-  return ROLE_LABELS[role] || ROLE_LABELS.player;
+function memberLabel(member: Member) {
+  if (member.role === "president") return ROLE_LABELS.president;
+  if (member.role === "scout") return ROLE_LABELS.scout;
+  return RANK_LABELS[member.rank] ?? RANK_LABELS.member;
 }
 
-function roleBadgeClass(role: AuthUser["role"]) {
-  if (role === "president") return "border-blue-400/30 bg-blue-500/15 text-blue-200";
-  if (role === "scout") return "border-amber-400/30 bg-amber-500/15 text-amber-200";
+function roleBadgeClass(member: Member) {
+  if (member.role === "president") return "border-blue-400/30 bg-blue-500/15 text-blue-200";
+  if (member.role === "scout" || member.rank === "scout") return "border-amber-400/30 bg-amber-500/15 text-amber-200";
+  if (member.rank === "vice") return "border-violet-400/30 bg-violet-500/15 text-violet-200";
   return "border-cyan-400/30 bg-cyan-500/10 text-cyan-200";
 }
 
@@ -38,6 +44,7 @@ function fromServer(user: SocialUser, localStats: Record<string, number> | null)
     avatar: user.avatar ?? null,
     eaId: user.eaId,
     role: user.role,
+    rank: user.clubRank ?? "member",
     overall: user.overall,
     stats: localStats,
   };
@@ -54,6 +61,8 @@ export default function ClubRosterSection({
 }) {
   const [remote, setRemote] = useState<{ club: SocialClub; roster: SocialUser[] } | null>(null);
   const [missing, setMissing] = useState(false);
+  const [rankBusy, setRankBusy] = useState<string | null>(null);
+  const [rankNote, setRankNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,12 +118,31 @@ export default function ClubRosterSection({
         avatar: p.avatar,
         eaId: p.ea_id ?? null,
         role: p.role,
+        rank: (p.club_rank as ClubRank | undefined) ?? "member",
         overall: p.overall,
         stats: (p.player_build?.stats as Record<string, number> | undefined) ?? null,
       }));
-  const canManageInvites =
-    viewer?.clubId === club.id &&
-    (viewer.role === "president" || viewer.role === "scout");
+  const canManageInvites = viewer?.clubId === club.id && canManageClub(viewer);
+  const isPresident = viewer?.role === "president" && viewer.clubId === club.id;
+  const reloadRoster = () => {
+    getSocialClub(clubId)
+      .then((data) => setRemote({ club: data.club, roster: data.roster }))
+      .catch(() => undefined);
+  };
+  const changeRank = async (member: Member, rank: ClubRank) => {
+    if (!viewer || member.rank === rank) return;
+    setRankBusy(member.id);
+    setRankNote(null);
+    try {
+      await setClubRank(viewer.id, member.id, rank);
+      reloadRoster();
+      setRankNote({ ok: true, text: `تم تغيير رتبة ${member.name} إلى ${RANK_LABELS[rank]}` });
+    } catch (error) {
+      setRankNote({ ok: false, text: rankErrorText(error) });
+    } finally {
+      setRankBusy(null);
+    }
+  };
   const regularPlayers = members.filter((member) => member.role === "player");
   const topStats = [
     { label: "أكثر تسجيلاً", icon: "⚽", key: "SHO", color: "text-rose-300", border: "border-rose-400/20", background: "bg-rose-500/10" },
@@ -170,6 +198,10 @@ export default function ClubRosterSection({
           <span className="rounded-full bg-slate-800 px-2.5 py-1 text-xs font-extrabold text-slate-300">{members.length}</span>
         </div>
 
+        {rankNote && (
+          <p className={`mb-3 text-xs font-bold ${rankNote.ok ? "text-emerald-300" : "text-rose-300"}`}>{rankNote.text}</p>
+        )}
+
         {members.length === 0 ? (
           <div className="rounded-xl border border-dashed border-slate-700 py-8 text-center">
             <UserRound size={24} className="mx-auto text-slate-600" />
@@ -190,11 +222,27 @@ export default function ClubRosterSection({
                   <p className="truncate text-sm font-extrabold text-slate-100">{member.name}</p>
                   <p className="mt-1 truncate text-xs text-slate-500">{member.eaId || "EA ID غير محدد"}</p>
                 </div>
-                <span className={`shrink-0 rounded-lg border px-2 py-1 text-[10px] font-extrabold ${roleBadgeClass(member.role)}`}>
-                  {member.role === "president" && <Crown size={11} className="ml-1 inline-block" />}
-                  {member.role === "scout" && <Search size={11} className="ml-1 inline-block" />}
-                  {roleLabel(member.role)}
-                </span>
+                {isPresident && member.role !== "president" && remote ? (
+                  <select
+                    value={member.rank}
+                    disabled={rankBusy === member.id}
+                    onChange={(event) => void changeRank(member, event.target.value as ClubRank)}
+                    aria-label={`رتبة ${member.name}`}
+                    className="shrink-0 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-[11px] font-extrabold text-slate-200 focus:border-cyan-400 focus:outline-none disabled:opacity-60"
+                  >
+                    {(Object.keys(RANK_LABELS) as ClubRank[]).map((rank) => (
+                      <option key={rank} value={rank}>
+                        {RANK_LABELS[rank]}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className={`shrink-0 rounded-lg border px-2 py-1 text-[10px] font-extrabold ${roleBadgeClass(member)}`}>
+                    {member.role === "president" && <Crown size={11} className="ml-1 inline-block" />}
+                    {(member.role === "scout" || member.rank === "scout") && <Search size={11} className="ml-1 inline-block" />}
+                    {memberLabel(member)}
+                  </span>
+                )}
               </div>
             ))}
           </div>

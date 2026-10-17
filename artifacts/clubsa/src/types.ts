@@ -39,6 +39,8 @@ export type ClubInvite = {
   created_at: string;
 };
 
+export type ClubRank = "member" | "vice" | "scout";
+
 export type AuthUser = {
   id: string;
   name: string;
@@ -52,6 +54,7 @@ export type AuthUser = {
   role: UserRole;
   isFreeAgent: boolean;
   joinStatus?: "approved" | "pending" | "rejected";
+  clubRank?: ClubRank;
   position?: string;
   overall?: number;
   avatar?: string;

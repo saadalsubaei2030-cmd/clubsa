@@ -42,6 +42,7 @@ export function ensureTables(): Promise<void> {
         is_free_agent boolean NOT NULL DEFAULT false,
         updated_at timestamptz NOT NULL DEFAULT now()
       );
+      ALTER TABLE clubsa_social_users ADD COLUMN IF NOT EXISTS club_rank text NOT NULL DEFAULT 'member';
       CREATE TABLE IF NOT EXISTS clubsa_social_clubs (
         id text PRIMARY KEY,
         name text NOT NULL,
@@ -168,6 +169,7 @@ type UserRow = {
   club_name: string | null;
   is_free_agent: boolean;
   avatar?: string | null;
+  club_rank?: string;
 };
 
 const USER_COLS = "id, name, username, role, region, ea_id, position, overall, club_id, club_name, is_free_agent";
@@ -186,6 +188,7 @@ function publicUser(row: UserRow) {
     clubName: row.club_name,
     isFreeAgent: row.is_free_agent,
     ...(row.avatar !== undefined ? { avatar: row.avatar } : {}),
+    ...(row.club_rank !== undefined ? { clubRank: row.club_rank } : {}),
   };
 }
 
@@ -367,7 +370,7 @@ router.get(
     if (!club) return fail(res, 404, "not_found");
 
     const roster = await pool.query<UserRow>(
-      `SELECT ${USER_COLS}, CASE WHEN length(avatar) <= 20000 THEN avatar END AS avatar
+      `SELECT ${USER_COLS}, club_rank, CASE WHEN length(avatar) <= 20000 THEN avatar END AS avatar
        FROM clubsa_social_users WHERE club_id = $1 ORDER BY overall DESC, name LIMIT 50`,
       [clubId],
     );

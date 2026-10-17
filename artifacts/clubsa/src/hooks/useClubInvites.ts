@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchIncomingInvites, fetchSentInvites, type ServerInvite } from "@/lib/invites";
+import { canManageClub } from "@/lib/permissions";
 import type { AuthUser } from "@/types";
 
 /**
@@ -11,7 +12,7 @@ export function useClubInvites(auth: AuthUser | null) {
   const [sent, setSent] = useState<ServerInvite[]>([]);
   const userId = auth?.id ?? null;
   const role = auth?.role ?? null;
-  const hasClub = Boolean(auth?.clubId);
+  const canManage = canManageClub(auth);
   const refreshRef = useRef<() => Promise<void>>(async () => undefined);
 
   useEffect(() => {
@@ -33,7 +34,7 @@ export function useClubInvites(auth: AuthUser | null) {
           // الخادم غير متاح الآن: نبقي آخر قائمة ونعيد المحاولة.
         }
       }
-      if ((role === "president" || role === "scout") && hasClub) {
+      if (canManage) {
         try {
           const data = await fetchSentInvites(userId, controller.signal);
           if (!cancelled) setSent(data.invites);
@@ -52,7 +53,7 @@ export function useClubInvites(auth: AuthUser | null) {
       window.clearTimeout(first);
       window.clearInterval(timer);
     };
-  }, [userId, role, hasClub]);
+  }, [userId, role, canManage]);
 
   const refresh = useCallback(() => refreshRef.current(), []);
   return { incoming, sent, refresh };
