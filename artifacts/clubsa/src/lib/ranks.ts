@@ -29,6 +29,27 @@ export function kickMember(userId: string, targetId: string) {
   });
 }
 
+export function listMemberForSale(userId: string, targetId: string, price: number) {
+  return request<{ ok: true; id: number }>(`/club-members/${encodeURIComponent(targetId)}/list`, {
+    base: "/api",
+    method: "POST",
+    userId,
+    body: { price },
+  });
+}
+
+export function saleErrorText(error: unknown): string {
+  if (error instanceof SocialError) {
+    if (error.code === "invalid_price") return "أدخل مبلغًا صحيحًا (رقم صحيح أكبر من صفر).";
+    if (error.code === "already_listed") return "هذا اللاعب معروض للبيع بالفعل.";
+    if (error.code === "presidents_only") return "عرض اللاعبين للبيع لرئيس النادي فقط.";
+    if (error.status === 404 && error.code === "not_found") return "هذا اللاعب لم يعد في ناديك.";
+    if (error.status === 404) return "هذه الخدمة غير متاحة حاليًا. حاول بعد قليل.";
+    if (error.status === 429) return "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.";
+  }
+  return "تعذّر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.";
+}
+
 export function kickErrorText(error: unknown): string {
   if (error instanceof SocialError) {
     if (error.status === 429) return "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.";

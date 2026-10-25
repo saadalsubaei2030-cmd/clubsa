@@ -4,7 +4,7 @@ import { getClubById, getClubPlayers } from "@/lib/mockData";
 import { SocialError, getSocialClub, type SocialClub, type SocialUser } from "@/lib/social";
 import { RANK_LABELS, ROLE_LABELS } from "@/data";
 import { canManageClub } from "@/lib/permissions";
-import { canKickMember, kickErrorText, kickMember, rankErrorText, setClubRank } from "@/lib/ranks";
+import { canKickMember, kickErrorText, kickMember, listMemberForSale, rankErrorText, saleErrorText, setClubRank } from "@/lib/ranks";
 import type { AuthUser, ClubRank } from "@/types";
 
 // عضو بالشكل الموحّد: يأتي من الخادم العام، أو من حسابات هذا المتصفح إذا تعذّر الاتصال.
@@ -62,6 +62,8 @@ export default function ClubRosterSection({
   const [remote, setRemote] = useState<{ club: SocialClub; roster: SocialUser[] } | null>(null);
   const [missing, setMissing] = useState(false);
   const [rankBusy, setRankBusy] = useState<string | null>(null);
+  const [saleTarget, setSaleTarget] = useState<Member | null>(null);
+  const [salePrice, setSalePrice] = useState("");
   const [kickTarget, setKickTarget] = useState<Member | null>(null);
   const [rankNote, setRankNote] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -158,6 +160,28 @@ export default function ClubRosterSection({
     } finally {
       setRankBusy(null);
       setKickTarget(null);
+    }
+  };
+  const confirmSale = async () => {
+    if (!viewer || !saleTarget) return;
+    const target = saleTarget;
+    const price = Number(salePrice);
+    if (!Number.isInteger(price) || price < 1) {
+      setRankNote({ ok: false, text: "أدخل مبلغًا صحيحًا (رقم صحيح أكبر من صفر)." });
+      return;
+    }
+    setRankBusy(target.id);
+    setRankNote(null);
+    try {
+      await listMemberForSale(viewer.id, target.id, price);
+      setRankNote({ ok: true, text: `تم عرض ${target.name} للبيع في سوق الانتقالات` });
+      setSaleTarget(null);
+      setSalePrice("");
+    } catch (error) {
+      setRankNote({ ok: false, text: saleErrorText(error) });
+      setSaleTarget(null);
+    } finally {
+      setRankBusy(null);
     }
   };
   const regularPlayers = members.filter((member) => member.role === "player");
@@ -260,6 +284,19 @@ export default function ClubRosterSection({
                     {memberLabel(member)}
                   </span>
                 )}
+                {remote && isPresident && member.role === "player" && (
+                  <button
+                    type="button"
+                    disabled={rankBusy === member.id}
+                    onClick={() => {
+                      setSalePrice("");
+                      setSaleTarget(member);
+                    }}
+                    className="shrink-0 rounded-lg border border-amber-400/30 bg-amber-500/10 px-2 py-1.5 text-[11px] font-extrabold text-amber-200 transition-colors hover:bg-amber-500/20 disabled:opacity-60"
+                  >
+                    بيع
+                  </button>
+                )}
                 {remote && canKickMember(viewer, member) && (
                   <button
                     type="button"
@@ -275,6 +312,41 @@ export default function ClubRosterSection({
           </div>
         )}
       </div>
+
+      {saleTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5 text-center">
+            <p className="text-base font-extrabold text-white">عرض {saleTarget.name} للبيع</p>
+            <p className="mt-2 text-sm text-slate-400">عند البيع يذهب 70% للاعب و30% لناديك، وينتقل اللاعب للنادي المشتري.</p>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              value={salePrice}
+              onChange={(event) => setSalePrice(event.target.value)}
+              placeholder="السعر"
+              className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-center text-sm font-bold text-white focus:border-cyan-400 focus:outline-none"
+            />
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => void confirmSale()}
+                disabled={rankBusy === saleTarget.id}
+                className="flex-1 rounded-xl bg-amber-500 px-3 py-2 text-sm font-extrabold text-slate-950 hover:bg-amber-400 disabled:opacity-60"
+              >
+                عرض للبيع
+              </button>
+              <button
+                type="button"
+                onClick={() => setSaleTarget(null)}
+                className="flex-1 rounded-xl border border-slate-700 px-3 py-2 text-sm font-extrabold text-slate-200 hover:bg-slate-800"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {kickTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true">
