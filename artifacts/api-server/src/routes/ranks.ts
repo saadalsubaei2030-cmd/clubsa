@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { pool } from "@workspace/db";
 import { createRateLimiter } from "../lib/public-chat-rules";
-import { PLAYER_START_BALANCE } from "../lib/market-rules";
+import { PLAYER_START_BALANCE, parsePrice } from "../lib/market-rules";
 import { authenticate, ensureTables } from "./social";
 
 const router: IRouter = Router();
@@ -128,6 +128,54 @@ router.post("/club-members/:userId/kick", async (req: Request, res: Response): P
     res.json({ ok: true });
   } catch (error) {
     req.log?.error({ err: error }, "club kick route failed");
+    if (!res.headersSent) fail(res, 500, "server_error");
+  }
+});
+
+/** رئيس النادي يعرض أحد لاعبي ناديه للبيع في السوق (نفس تقسيم 70% للاعب و30% للنادي السابق). */
+router.post("/club-members/:userId/list", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await ensureTables();
+    res.setHeader("Cache-Control", "no-store");
+
+    const me = await authenticate(req);
+    if (!me) return fail(res, 401, "unauthorized");
+    if (!writeLimit.allow(me)) return fail(res, 429, "rate_limited");
+
+    const target = req.params.userId;
+    if (typeof target !== "string" || !target || target.length > 100 || target === me) return fail(res, 400, "invalid_target");
+    const price = parsePrice((req.body as { price?: unknown } | undefined)?.price);
+    if (price === null) return fail(res, 400, "invalid_price");
+
+    const club = await pool.query<{ id: string }>("SELECT id FROM clubsa_social_clubs WHERE president_id = $1 LIMIT 1", [me]);
+    const clubId = club.rows[0]?.id;
+    if (!clubId) return fail(res, 403, "presidents_only");
+
+    const member = await pool.query(
+      "SELECT 1 FROM clubsa_social_users WHERE id = $1 AND club_id = $2 AND role = 'player'",
+      [target, clubId],
+    );
+    if (!member.rowCount) return fail(res, 404, "not_found");
+
+    try {
+      await pool.query(
+        `CREATE TABLE IF NOT EXISTS clubsa_market_listings (
+          id serial PRIMARY KEY, player_id text NOT NULL, price bigint NOT NULL, status text NOT NULL DEFAULT 'open',
+          buyer_club_id text, created_at timestamptz NOT NULL DEFAULT now(), sold_at timestamptz
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS clubsa_market_listings_one_open ON clubsa_market_listings (player_id) WHERE status = 'open';`,
+      );
+      const inserted = await pool.query<{ id: number }>(
+        "INSERT INTO clubsa_market_listings (player_id, price) VALUES ($1, $2) RETURNING id",
+        [target, price],
+      );
+      res.status(201).json({ ok: true, id: inserted.rows[0].id });
+    } catch (error) {
+      if ((error as { code?: string }).code === "23505") return fail(res, 409, "already_listed");
+      throw error;
+    }
+  } catch (error) {
+    req.log?.error({ err: error }, "club member list route failed");
     if (!res.headersSent) fail(res, 500, "server_error");
   }
 });
