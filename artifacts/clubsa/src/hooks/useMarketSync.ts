@@ -25,7 +25,7 @@ export function useMarketSync(auth: AuthUser | null, onChange: (userId: string) 
         const state = await getMarketState(userId, controller.signal);
         if (cancelled) return;
         if (applyMarketState(userId, state)) callback.current(userId);
-        if (state.assignment) await ackAssignment(userId).catch(() => undefined);
+        if (state.assignment || state.removed) await ackAssignment(userId).catch(() => undefined);
       } catch {
         // الخادم غير متاح الآن: نحتفظ بآخر رصيد محلي ونعيد المحاولة.
       }

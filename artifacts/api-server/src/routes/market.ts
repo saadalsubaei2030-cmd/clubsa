@@ -110,6 +110,7 @@ router.get(
     if (!me) return fail(res, 401, "unauthorized");
 
     let balance: number | null = null;
+    let removed = false;
     let assignment: { clubId: string; clubName: string; logo: string | null; primaryColor: string; secondaryColor: string; presidentId: string } | null = null;
 
     if (me.role === "player") {
@@ -119,6 +120,7 @@ router.get(
         [id],
       );
       balance = Number(rows[0]?.balance ?? 0);
+      if (rows[0]?.assignment_pending && !rows[0].assigned_club_id) removed = true;
       if (rows[0]?.assignment_pending && rows[0].assigned_club_id) {
         const club = await pool.query<{ id: string; name: string; logo: string | null; primary_color: string; secondary_color: string; president_id: string }>(
           "SELECT id, name, logo, primary_color, secondary_color, president_id FROM clubsa_social_clubs WHERE id = $1",
@@ -148,7 +150,7 @@ router.get(
     }
 
     const rankRow = await pool.query<{ club_rank: string }>("SELECT club_rank FROM clubsa_social_users WHERE id = $1", [id]);
-    res.json({ balance, club, assignment, rank: rankRow.rows[0]?.club_rank ?? "member" });
+    res.json({ balance, club, assignment, removed, rank: rankRow.rows[0]?.club_rank ?? "member" });
   }),
 );
 

@@ -4,7 +4,7 @@ import { getClubById, getClubPlayers } from "@/lib/mockData";
 import { SocialError, getSocialClub, type SocialClub, type SocialUser } from "@/lib/social";
 import { RANK_LABELS, ROLE_LABELS } from "@/data";
 import { canManageClub } from "@/lib/permissions";
-import { rankErrorText, setClubRank } from "@/lib/ranks";
+import { canKickMember, kickErrorText, kickMember, rankErrorText, setClubRank } from "@/lib/ranks";
 import type { AuthUser, ClubRank } from "@/types";
 
 // عضو بالشكل الموحّد: يأتي من الخادم العام، أو من حسابات هذا المتصفح إذا تعذّر الاتصال.
@@ -62,6 +62,7 @@ export default function ClubRosterSection({
   const [remote, setRemote] = useState<{ club: SocialClub; roster: SocialUser[] } | null>(null);
   const [missing, setMissing] = useState(false);
   const [rankBusy, setRankBusy] = useState<string | null>(null);
+  const [kickTarget, setKickTarget] = useState<Member | null>(null);
   const [rankNote, setRankNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
@@ -141,6 +142,22 @@ export default function ClubRosterSection({
       setRankNote({ ok: false, text: rankErrorText(error) });
     } finally {
       setRankBusy(null);
+    }
+  };
+  const confirmKick = async () => {
+    if (!viewer || !kickTarget) return;
+    const target = kickTarget;
+    setRankBusy(target.id);
+    setRankNote(null);
+    try {
+      await kickMember(viewer.id, target.id);
+      reloadRoster();
+      setRankNote({ ok: true, text: `تم طرد ${target.name} من النادي` });
+    } catch (error) {
+      setRankNote({ ok: false, text: kickErrorText(error) });
+    } finally {
+      setRankBusy(null);
+      setKickTarget(null);
     }
   };
   const regularPlayers = members.filter((member) => member.role === "player");
@@ -243,11 +260,47 @@ export default function ClubRosterSection({
                     {memberLabel(member)}
                   </span>
                 )}
+                {remote && canKickMember(viewer, member) && (
+                  <button
+                    type="button"
+                    disabled={rankBusy === member.id}
+                    onClick={() => setKickTarget(member)}
+                    className="shrink-0 rounded-lg border border-rose-400/30 bg-rose-500/10 px-2 py-1.5 text-[11px] font-extrabold text-rose-200 transition-colors hover:bg-rose-500/20 disabled:opacity-60"
+                  >
+                    طرد
+                  </button>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {kickTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-700 bg-slate-900 p-5 text-center">
+            <p className="text-base font-extrabold text-white">طرد {kickTarget.name}؟</p>
+            <p className="mt-2 text-sm text-slate-400">سيُزال من النادي ويصبح لاعبًا حرًا، وتُلغى إعلاناته المفتوحة في السوق.</p>
+            <div className="mt-5 flex gap-2">
+              <button
+                type="button"
+                onClick={() => void confirmKick()}
+                disabled={rankBusy === kickTarget.id}
+                className="flex-1 rounded-xl bg-rose-500 px-3 py-2 text-sm font-extrabold text-white hover:bg-rose-400 disabled:opacity-60"
+              >
+                تأكيد الطرد
+              </button>
+              <button
+                type="button"
+                onClick={() => setKickTarget(null)}
+                className="flex-1 rounded-xl border border-slate-700 px-3 py-2 text-sm font-extrabold text-slate-200 hover:bg-slate-800"
+              >
+                إلغاء
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         {topStats.map((stat) => (
