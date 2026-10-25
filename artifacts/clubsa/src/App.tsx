@@ -129,7 +129,7 @@ export default function App() {
           const refreshedUser = fetchProfile(auth.id);
           if (refreshedUser) setUser(refreshedUser);
         }
-        if (state.assignment) await ackAssignment(auth.id).catch(() => undefined);
+        if (state.assignment || state.removed) await ackAssignment(auth.id).catch(() => undefined);
       } catch {
         // دورة المزامنة العادية ستلتقطه بعد قليل
       }

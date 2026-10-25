@@ -20,3 +20,32 @@ export function rankErrorText(error: unknown): string {
   }
   return "تعذّر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.";
 }
+
+export function kickMember(userId: string, targetId: string) {
+  return request<{ ok: true }>(`/club-members/${encodeURIComponent(targetId)}/kick`, {
+    base: "/api",
+    method: "POST",
+    userId,
+  });
+}
+
+export function kickErrorText(error: unknown): string {
+  if (error instanceof SocialError) {
+    if (error.status === 429) return "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.";
+    if (error.status === 404 && error.code === "not_found") return "هذا اللاعب لم يعد في ناديك.";
+    if (error.status === 404) return "هذه الخدمة غير متاحة حاليًا. حاول بعد قليل.";
+    if (error.code === "managers_only" || error.code === "forbidden_target") return "ليست لديك صلاحية طرد هذا العضو.";
+    if (error.status === 401) return "تعذّر ربط حسابك بالخادم. أعد تحميل الصفحة وحاول مرة أخرى.";
+  }
+  return "تعذّر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.";
+}
+
+/** الرئيس يطرد أي عضو، والنائب يطرد الكشاف واللاعب العادي فقط. */
+export function canKickMember(
+  viewer: { role: string; clubRank?: string } | null | undefined,
+  target: { role: string; rank: string },
+): boolean {
+  if (!viewer || target.role === "president") return false;
+  if (viewer.role === "president") return true;
+  return viewer.clubRank === "vice" && target.rank !== "vice";
+}

@@ -618,6 +618,7 @@ export type MarketState = {
   balance: number | null;
   club: { id: string; budget: number } | null;
   rank?: string;
+  removed?: boolean;
   assignment: {
     clubId: string;
     clubName: string;
@@ -663,6 +664,12 @@ export function applyMarketState(userId: string, state: MarketState): boolean {
     user.club_id = a.clubId;
     user.is_free_agent = false;
     user.join_status = "approved";
+    changed = true;
+  }
+  if (state.removed && !state.assignment && user.club_id) {
+    user.club_id = null;
+    user.is_free_agent = true;
+    user.club_rank = "member";
     changed = true;
   }
   if (state.rank !== undefined && (user.club_rank ?? "member") !== state.rank) {
