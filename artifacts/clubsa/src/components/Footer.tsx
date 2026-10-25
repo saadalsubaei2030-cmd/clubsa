@@ -1,4 +1,4 @@
-import { Shield, FileText, Mail, Info } from "lucide-react";
+import { Shield, FileText, Mail, Info, BookOpen } from "lucide-react";
 import type { LegalPage } from "@/components/LegalModal";
 
 export default function Footer({
@@ -6,7 +6,8 @@ export default function Footer({
   onOpenLegal?: (page: LegalPage) => void;
 }) {
   // روابط حقيقية لصفحات ثابتة (يمكن لزواحف جوجل والمستخدمين فتحها مباشرة).
-  const links: { page: LegalPage; label: string; icon: typeof Shield }[] = [
+  const links: { page: LegalPage | "articles/"; label: string; icon: typeof Shield }[] = [
+    { page: "articles/", label: "المقالات", icon: BookOpen },
     { page: "about", label: "من نحن", icon: Info },
     { page: "privacy", label: "سياسة الخصوصية", icon: Shield },
     { page: "terms", label: "الشروط والأحكام", icon: FileText },
