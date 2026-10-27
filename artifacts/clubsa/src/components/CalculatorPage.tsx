@@ -448,6 +448,32 @@ export default function CalculatorPage({
             className="bg-transparent text-slate-100 font-bold outline-none tabular-nums" />
         </label>
       </div>
+      {(() => {
+        const bodyName = (POSITION_ARCHETYPES[posId] ?? []).find((n) => ARCHETYPE_BODY[n]);
+        const body = bodyName ? ARCHETYPE_BODY[bodyName] : null;
+        if (!bodyName || !body) return null;
+        const matches = height === body.height && weight === body.weight;
+        return (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-cyan-400/20 bg-cyan-500/5 px-3 py-2 text-[11px] text-slate-300">
+            <span>
+              المناسب لـ{position.label} ({ARCHETYPES[bodyName]?.ar}): <b className="text-cyan-200">{body.height} سم · {body.weight} كجم</b>
+            </span>
+            {!matches && (
+              <button
+                type="button"
+                onClick={() => {
+                  setHasInteracted(true);
+                  setHeight(body.height);
+                  setWeight(body.weight);
+                }}
+                className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-2.5 py-1 font-extrabold text-cyan-200 hover:bg-cyan-500/20"
+              >
+                تطبيق الطول والوزن
+              </button>
+            )}
+          </div>
+        );
+      })()}
       <p className="text-[11px] text-slate-500 mb-6">
         اللفل يزيد رصيد نقاط الطاقة المتاحة، بينما الطول والوزن يمنحان أو يخصمان تلقائيًا من صفات محددة (القوة، الرشاقة، القفز، السرعة...) — الأرقام بين قوسين تُظهر أثر الجسم على الرقم الأساسي.
       </p>
