@@ -55,7 +55,7 @@ export const NEWS: NewsItem[] = [
       "Amps: قدرات مميزة تُضاف للأركيتايب، حتى قدرات لا ترتبط عادة بمركزك. الأعلى منها مستوحى من لاعبين حقيقيين وتنزل أنواع جديدة بشكل دوري.",
       "Masteries: لإتقان أركيتايب بالكامل لازم تطوّر أركيتايبات مكمّلة. مثال: بناء المهاجم يبدأ بتطوير جانب الوسط أولاً.",
       "كل الأركيتايبات مفتوحة من البداية، وإعادة توزيع الصفات مجانية.",
-      "سقف المستوى 40، ونقاط الصفات (AP) من 100 إلى 962 تقريباً (رقم غير رسمي من Pro Clubs HQ).",
+      "سقف المستوى وإجمالي نقاط الصفات (AP) تختلف أرقامه بين المصادر (يذكر Pro Clubs HQ سقف 55 وإجمالي 1,419 AP)، فتأكد من الرقم داخل اللعبة قبل التخطيط.",
     ],
     source: { label: "EA Sports", url: "https://www.ea.com/news/ea-fc-the-grounds-is-here" },
     accent: "violet",
@@ -83,6 +83,12 @@ export type Archetype = {
   strengths: string[];
   playstyles: string[];
   stats: { label: string; value: number }[]; // أسقف تقريبية 0-100
+  build?: {
+    priority: string[]; // أين تصرف طاقاتك بالترتيب
+    avoid: string; // ما لا تتعب فيه
+    spec: string; // التخصص الأرخص / الأنسب
+    note: string;
+  };
 };
 
 export type PositionGuide = {
@@ -184,8 +190,8 @@ export const ARCHETYPES: Record<string, Archetype> = {
     pick: "المهاجم الأساسي. الأكثر توازناً في المقدمة.",
     strengths: [
       "أعلى سقف تسجيل (99) بين المهاجمين",
-      "أرخص في رفع: Agility و Dribbling و Sprint Speed و Vision",
-      "أغلى في رفع: Finishing و Short Pass و الدفاع",
+      "أرخص في رفع: Reactions و Volleys و Composure و Finishing (بعد تعديل الأسعار في 22 أكتوبر)",
+      "أغلى في رفع: Acceleration و Agility و Dribbling و Sprint Speed و Short Pass والدفاع",
     ],
     playstyles: ["Low Driven Shot", "Fake to Real", "1v1 Master"],
     stats: [
@@ -195,6 +201,12 @@ export const ARCHETYPES: Record<string, Archetype> = {
       { label: "تمرير", value: 80 },
       { label: "قوة", value: 80 },
     ],
+    build: {
+      priority: ["Finishing (الأولوية الأولى، سقفه 99)", "Composure و Reactions", "Att. Position و Curve", "Acceleration بقدر ما تكسب أول خطوة", "Volleys بما يتبقى من النقاط"],
+      avoid: "لا تطارد أعلى Sprint Speed: صار غاليًا بعد التعديل، والتمركز أهم منه للهدّاف.",
+      spec: "Finisher+ (حوالي 308 AP) هو الأرخص، و Hunter (حوالي 330 AP) خيار شائع مع Gamechanger+.",
+      note: "الأرقام تقريبية من Pro Clubs HQ بتاريخ 22 أكتوبر 2026 وتتغير مع التحديثات. بلوغ المستوى 10 يمنح +1 Finishing و +1 Composure لكل بناءاتك.",
+    },
   },
   Magician: {
     name: "Magician",
@@ -203,8 +215,8 @@ export const ARCHETYPES: Record<string, Archetype> = {
     pick: "للي يبي يراوغ ويصنع ويسجل. شكل ونوع مختلف.",
     strengths: [
       "أعلى سقف تحكم بالكرة وتمرير مع غيره",
-      "أرخص في رفع: Balance و Composure و Volleys و Shot Power",
-      "أغلى في رفع: Dribbling و Agility و Sprint Speed",
+      "أرخص في رفع: Curve",
+      "أغلى في رفع: Dribbling و Finishing و Agility و Sprint Speed",
     ],
     playstyles: ["Technical", "Getaway Driver", "Ankle Breaker", "Power Shot"],
     stats: [
@@ -214,6 +226,12 @@ export const ARCHETYPES: Record<string, Archetype> = {
       { label: "تمرير", value: 95 },
       { label: "قوة", value: 75 },
     ],
+    build: {
+      priority: ["Curve (الأرخص: نحو 226 AP للسقف)", "Acceleration (نحو 224 AP)", "Balance", "Ball Control و Composure", "Dribbling ثم Finishing إذا بقيت نقاط"],
+      avoid: "Agility و Finishing من أغلى ما يُرفع عند الساحر، فلا تجعلهما أول صرفك.",
+      spec: "Magician+ (حوالي 386 AP) هو الأرخص ويحتاج Acceleration 90 و Composure 90 و Ball Control 92. وبعده Invader (حوالي 419 AP).",
+      note: "الأرقام تقريبية من Pro Clubs HQ بتاريخ 22 أكتوبر 2026. جرّبه كمهاجم ثانٍ أو كجناح يصنع، ويلعب 62% من وقته أمامًا بحسب نفس المصدر.",
+    },
   },
   Maestro: {
     name: "Maestro",
@@ -240,7 +258,7 @@ export const ARCHETYPES: Record<string, Archetype> = {
     pick: "الجناح السريع الذي يقطع للداخل ويرسل العرضيات.",
     strengths: [
       "أعلى سقف سرعة (97) بين المهاجمين والأجنحة",
-      "أرخص في رفع: Curve و Dribbling و Vision و Long Shots",
+      "أرخص في رفع: Att. Position و Curve و Penalties و Reactions",
       "رقم 1 في الوسط الجناحي عند Pro Clubs HQ",
     ],
     playstyles: ["Trickster", "Bail Out", "Cut Back Specialist"],
@@ -251,6 +269,12 @@ export const ARCHETYPES: Record<string, Archetype> = {
       { label: "تمرير", value: 90 },
       { label: "قوة", value: 70 },
     ],
+    build: {
+      priority: ["Sprint Speed و Acceleration (سقف السرعة 97)", "Dribbling و Ball Control", "Curve لتسديد الزاوية والعرضيات", "Att. Position للدخول خلف الدفاع"],
+      avoid: "لا تصرف كثيرًا على Short Pass و Finishing فهما من أغلى صفاتك.",
+      spec: "Joker (حوالي 397 AP) بحسب Pro Clubs HQ.",
+      note: "بدأت الأرقام تتحرك بعد تعديل 22 أكتوبر، فراجع تكلفة كل صفة في اللعبة قبل الصرف.",
+    },
   },
   Target: {
     name: "Target",
@@ -259,7 +283,7 @@ export const ARCHETYPES: Record<string, Archetype> = {
     pick: "الطويل القوي (حتى 6'5\") للكرات العالية والاحتكاك.",
     strengths: [
       "أعلى سقف قوة بدنية (95)",
-      "أرخص في رفع: Short Pass و Acceleration و Ball Control",
+      "أرخص في رفع: Jumping (وبحسب مصادر أخرى Strength و Heading Accuracy)",
       "يبدأ بنجمتين في المهارات والرجل الضعيفة بدل ثلاث",
     ],
     playstyles: ["Precision Header", "No Look Finisher", "Physical Shooter", "Bruiser"],
@@ -270,6 +294,12 @@ export const ARCHETYPES: Record<string, Archetype> = {
       { label: "تمرير", value: 80 },
       { label: "قوة", value: 95 },
     ],
+    build: {
+      priority: ["Strength و Jumping", "Heading Accuracy", "Att. Position و Composure", "Finishing بقدر ما تحتاج لإنهاء الكرات"],
+      avoid: "لا تبنِ عليه مراوغة وسرعة: Dribbling و Agility و Sprint Speed من أغلى ما عنده.",
+      spec: "Target+ (حوالي 392 AP) هو الأرخص.",
+      note: "يحتاج ناديًا يرسل عرضيات. يناسب الأطوال من 5'10\" إلى 6'5\"، ولم يظهر في قوائم الأفضلية عند Pro Clubs HQ، فاختره لأسلوبك لا للتصنيف.",
+    },
   },
   Creator: {
     name: "Creator",

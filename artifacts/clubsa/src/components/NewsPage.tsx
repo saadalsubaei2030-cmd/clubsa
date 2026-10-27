@@ -226,6 +226,26 @@ function ArchetypeCard({ name, highlight }: { name: string; highlight?: boolean 
         ))}
       </ul>
 
+      {a.build && (
+        <div className="mt-5 rounded-xl border border-amber-400/20 bg-amber-500/5 p-4">
+          <p className="mb-2 text-xs font-extrabold text-amber-300">وش تحط من طاقات</p>
+          <ol className="list-inside list-decimal space-y-1 text-sm leading-relaxed text-slate-200">
+            {a.build.priority.map((p, i) => (
+              <li key={i}>{p}</li>
+            ))}
+          </ol>
+          <p className="mt-3 text-xs leading-relaxed text-slate-300">
+            <span className="font-extrabold text-rose-300">تجنّب: </span>
+            {a.build.avoid}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-slate-300">
+            <span className="font-extrabold text-cyan-300">التخصص: </span>
+            {a.build.spec}
+          </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-slate-500">{a.build.note}</p>
+        </div>
+      )}
+
       {a.playstyles.length > 0 && (
         <div className="mt-5">
           <p className="mb-2 text-xs font-bold text-slate-400">ستايلات تناسبه</p>
