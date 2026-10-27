@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { ChevronDown, RotateCcw, Sparkles } from "lucide-react";
 import { POSITIONS, capForLevel } from "@/data";
+import { ARCHETYPES } from "@/lib/guideData";
 import type { Position, Category, AuthUser, PlayerBuild } from "@/types";
 
 const MAX_STAT = 99;
@@ -55,6 +56,50 @@ function metaBuild(position: Position, budget: number, caps: Record<string, numb
       values[su.key] += add;
       remaining -= add;
     }
+  }
+  return values;
+}
+
+// أفضل أنماط كل مركز (من دليل CLUBSA) وترتيب صرف الصفات لما له بناء موثّق.
+const POSITION_ARCHETYPES: Record<string, string[]> = {
+  ST: ["Finisher", "Magician", "Target"],
+  WG: ["Magician", "Spark"],
+  CAM: ["Maestro", "Magician"],
+  CM: ["Maestro", "Creator"],
+  CDM: ["Maestro", "Recycler"],
+  FB: ["Marauder", "Boss"],
+  CB: ["Boss"],
+  GK: ["Shot Stopper"],
+};
+
+const ARCHETYPE_STAT_ORDER: Record<string, string[]> = {
+  Finisher: ["FIN", "COM", "REA", "ATP", "CUR", "ACC", "VOL"],
+  Magician: ["CUR", "ACC", "BAL", "BCT", "COM", "DRB", "FIN"],
+  Spark: ["SPR", "ACC", "DRB", "BCT", "CUR", "ATP"],
+  Target: ["STR", "JUM", "HEA", "ATP", "COM", "FIN"],
+};
+
+/** يوزّع النقاط بترتيب أولويات النمط (حتى 75 لكل صفة أولًا ثم حتى السقف)، وما تبقى بحسب وزن المركز. */
+function archetypeBuild(position: Position, archetype: string, budget: number, caps: Record<string, number>): Record<string, number> | null {
+  const order = ARCHETYPE_STAT_ORDER[archetype];
+  if (!order) return null;
+  const valid = new Set(flattenLeafKeys(position));
+  const keys = order.filter((k) => valid.has(k));
+  if (!keys.length) return null;
+  const values: Record<string, number> = {};
+  valid.forEach((k) => (values[k] = 0));
+  let remaining = budget;
+  for (const target of [75, MAX_STAT]) {
+    for (const k of keys) {
+      const cap = Math.min(target, caps[k] ?? MAX_STAT);
+      const add = Math.max(0, Math.min(cap - values[k], remaining));
+      values[k] += add;
+      remaining -= add;
+    }
+  }
+  if (remaining > 0) {
+    const rest = metaBuild(position, remaining + 0, Object.fromEntries(Object.keys(values).map((k) => [k, Math.max(0, (caps[k] ?? MAX_STAT) - values[k])])));
+    for (const k of Object.keys(rest)) values[k] += rest[k];
   }
   return values;
 }
@@ -288,6 +333,12 @@ export default function CalculatorPage({
     leafKeys.forEach((k) => (cleared[k] = 0));
     setValues(cleared);
   };
+  const handleArchetypeBuild = (archetype: string) => {
+    const built = archetypeBuild(position, archetype, budget, caps);
+    if (!built) return;
+    setHasInteracted(true);
+    setValues(built);
+  };
   const handleMetaBuild = () => {
     setHasInteracted(true);
     setValues(metaBuild(position, budget, caps));
@@ -328,6 +379,41 @@ export default function CalculatorPage({
           يوزّع النقاط تلقائيًا على الطاقات الأكثر تأثيرًا على تقييم {position.label} ضمن رصيدك الحالي.
         </p>
       </div>
+
+      {(POSITION_ARCHETYPES[posId] ?? []).length > 0 && (
+        <div className="mb-5 rounded-xl border border-amber-400/20 bg-amber-500/5 p-4">
+          <p className="text-xs font-extrabold text-amber-300 mb-2">أفضل الأنماط لـ{position.label}</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {POSITION_ARCHETYPES[posId].map((name, index) => {
+              const a = ARCHETYPES[name];
+              if (!a) return null;
+              const loadable = !!ARCHETYPE_STAT_ORDER[name];
+              return (
+                <div key={name} className="rounded-lg border border-slate-800 bg-slate-900/60 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-extrabold text-white">{a.ar} <span className="text-[11px] text-slate-500">{a.name}</span></span>
+                    {index === 0 && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-extrabold text-amber-200">الأفضل</span>}
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{a.pick}</p>
+                  {a.build && <p className="mt-1 text-[11px] leading-relaxed text-slate-300">أولويتك: {a.build.priority.slice(0, 3).join("، ")}</p>}
+                  {loadable ? (
+                    <button
+                      type="button"
+                      onClick={() => handleArchetypeBuild(name)}
+                      className="mt-2 rounded-md border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-[11px] font-extrabold text-amber-200 hover:bg-amber-500/20"
+                    >
+                      تحميل بناء {a.ar}
+                    </button>
+                  ) : (
+                    <p className="mt-2 text-[10px] text-slate-500">بناء هذا النمط التفصيلي غير متوفر بعد، استخدم "تحميل أفضل بناء".</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[10px] text-slate-500">التوزيع تقريبي من أولويات الصرف في دليل CLUBSA (Pro Clubs HQ بتاريخ 22 أكتوبر 2026) وتتغير الأرقام مع التحديثات.</p>
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-3 mb-4">
         <label className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-2 flex flex-col gap-1">
