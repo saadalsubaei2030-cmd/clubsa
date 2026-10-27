@@ -79,6 +79,14 @@ const ARCHETYPE_STAT_ORDER: Record<string, string[]> = {
   Target: ["STR", "JUM", "HEA", "ATP", "COM", "FIN"],
 };
 
+// طول ووزن مقترحان لكل نمط (اقتراح تقريبي من CLUBSA؛ الهدّاف الطويل يناسب 5'10\" إلى 6'5\" بحسب الدليل).
+const ARCHETYPE_BODY: Record<string, { height: number; weight: number }> = {
+  Finisher: { height: 180, weight: 75 },
+  Magician: { height: 174, weight: 68 },
+  Spark: { height: 170, weight: 66 },
+  Target: { height: 191, weight: 84 },
+};
+
 /** يوزّع النقاط بترتيب أولويات النمط (حتى 75 لكل صفة أولًا ثم حتى السقف)، وما تبقى بحسب وزن المركز. */
 function archetypeBuild(position: Position, archetype: string, budget: number, caps: Record<string, number>): Record<string, number> | null {
   const order = ARCHETYPE_STAT_ORDER[archetype];
@@ -338,6 +346,11 @@ export default function CalculatorPage({
     if (!built) return;
     setHasInteracted(true);
     setValues(built);
+    const body = ARCHETYPE_BODY[archetype];
+    if (body) {
+      setHeight(body.height);
+      setWeight(body.weight);
+    }
   };
   const handleMetaBuild = () => {
     setHasInteracted(true);
@@ -402,7 +415,7 @@ export default function CalculatorPage({
                       onClick={() => handleArchetypeBuild(name)}
                       className="mt-2 rounded-md border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-[11px] font-extrabold text-amber-200 hover:bg-amber-500/20"
                     >
-                      تحميل بناء {a.ar}
+                      تحميل بناء {a.ar}{ARCHETYPE_BODY[name] ? ` (${ARCHETYPE_BODY[name].height} سم · ${ARCHETYPE_BODY[name].weight} كجم)` : ""}
                     </button>
                   ) : (
                     <p className="mt-2 text-[10px] text-slate-500">بناء هذا النمط التفصيلي غير متوفر بعد، استخدم "تحميل أفضل بناء".</p>
@@ -411,7 +424,7 @@ export default function CalculatorPage({
               );
             })}
           </div>
-          <p className="mt-2 text-[10px] text-slate-500">التوزيع تقريبي من أولويات الصرف في دليل CLUBSA (Pro Clubs HQ بتاريخ 22 أكتوبر 2026) وتتغير الأرقام مع التحديثات.</p>
+          <p className="mt-2 text-[10px] text-slate-500">عند التحميل يتغير الطول والوزن إلى القيم المقترحة للنمط وتقدر تعدّلهما بعدها. التوزيع تقريبي من أولويات الصرف في دليل CLUBSA (Pro Clubs HQ بتاريخ 22 أكتوبر 2026) وتتغير الأرقام مع التحديثات.</p>
         </div>
       )}
 
@@ -435,6 +448,32 @@ export default function CalculatorPage({
             className="bg-transparent text-slate-100 font-bold outline-none tabular-nums" />
         </label>
       </div>
+      {(() => {
+        const bodyName = (POSITION_ARCHETYPES[posId] ?? []).find((n) => ARCHETYPE_BODY[n]);
+        const body = bodyName ? ARCHETYPE_BODY[bodyName] : null;
+        if (!bodyName || !body) return null;
+        const matches = height === body.height && weight === body.weight;
+        return (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-cyan-400/20 bg-cyan-500/5 px-3 py-2 text-[11px] text-slate-300">
+            <span>
+              المناسب لـ{position.label} ({ARCHETYPES[bodyName]?.ar}): <b className="text-cyan-200">{body.height} سم · {body.weight} كجم</b>
+            </span>
+            {!matches && (
+              <button
+                type="button"
+                onClick={() => {
+                  setHasInteracted(true);
+                  setHeight(body.height);
+                  setWeight(body.weight);
+                }}
+                className="rounded-md border border-cyan-400/30 bg-cyan-500/10 px-2.5 py-1 font-extrabold text-cyan-200 hover:bg-cyan-500/20"
+              >
+                تطبيق الطول والوزن
+              </button>
+            )}
+          </div>
+        );
+      })()}
       <p className="text-[11px] text-slate-500 mb-6">
         اللفل يزيد رصيد نقاط الطاقة المتاحة، بينما الطول والوزن يمنحان أو يخصمان تلقائيًا من صفات محددة (القوة، الرشاقة، القفز، السرعة...) — الأرقام بين قوسين تُظهر أثر الجسم على الرقم الأساسي.
       </p>
