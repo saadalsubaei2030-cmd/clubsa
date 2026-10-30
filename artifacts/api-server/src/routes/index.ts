@@ -6,6 +6,7 @@ import socialRouter from "./social";
 import marketRouter from "./market";
 import invitesRouter from "./invites";
 import ranksRouter from "./ranks";
+import leaderboardsRouter from "./leaderboards";
 
 const router: IRouter = Router();
 
@@ -15,6 +16,7 @@ router.use(socialRouter);
 router.use(marketRouter);
 router.use(invitesRouter);
 router.use(ranksRouter);
+router.use(leaderboardsRouter);
 router.use(clubsaRouter);
 
 export default router;

@@ -314,3 +314,16 @@ export function socialErrorText(error: unknown): string {
   }
   return "تعذّر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.";
 }
+
+/* ───────────── المتصدرون العامّون (من الخادم) ───────────── */
+
+export type LeaderboardClub = { id: string; name: string; region: string; wins: number; trophies: number; budget: number };
+export type LeaderboardPlayer = { id: string; name: string; position: string | null; region: string; overall: number; balance: number };
+export type Leaderboards = {
+  clubs: { wins: LeaderboardClub[]; trophies: LeaderboardClub[]; budget: LeaderboardClub[] };
+  players: { overall: LeaderboardPlayer[]; balance: LeaderboardPlayer[] };
+};
+
+export function fetchLeaderboards(signal?: AbortSignal) {
+  return request<Leaderboards>("/leaderboards", { base: "/api", signal });
+}

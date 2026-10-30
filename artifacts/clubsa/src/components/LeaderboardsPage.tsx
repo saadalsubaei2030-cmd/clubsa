@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Trophy, TrendingUp, Flame, Medal, Users, Wallet, Plus } from "lucide-react";
 import { getClubs, getPlayers } from "@/lib/mockData";
+import { fetchLeaderboards, type Leaderboards } from "@/lib/social";
 
 type ClubStat = { id: string; name: string; region: string; wins: number; trophies: number; budget: number; logo: string | null };
 type PlayerStat = { id: string; name: string; position: string | null; overall: number; region: string; balance: number };
 
 export default function LeaderboardsPage() {
+  const [remote, setRemote] = useState<Leaderboards | null>(null);
   const [tab, setTab] = useState<"clubs" | "players">("clubs");
   const [clubs] = useState<ClubStat[]>(() =>
     getClubs()
@@ -18,15 +20,32 @@ export default function LeaderboardsPage() {
       .map((p) => ({ id: p.id, name: p.name, position: p.position, overall: p.overall, region: p.region, balance: p.balance }))
   );
 
+  useEffect(() => {
+    const controller = new AbortController();
+    const load = () =>
+      fetchLeaderboards(controller.signal)
+        .then(setRemote)
+        .catch(() => undefined);
+    void load();
+    const timer = window.setInterval(() => void load(), 30_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  // من الخادم إن توفر (عام لكل الزوار)، وإلا نعرض بيانات هذا المتصفح كاحتياط.
+  const pick = <T,>(server: T[] | undefined, local: T[]): T[] => (remote && server ? server : local);
+
   const clubStats = [
-    { key: "wins", label: "أعلى سلسلة انتصارات", icon: Flame, color: "text-emerald-300", data: [...clubs].sort((a, b) => b.wins - a.wins), format: (v: number) => v + " فوز" },
-    { key: "trophies", label: "الأكثر تحصيلاً للبطولات", icon: Trophy, color: "text-amber-300", data: [...clubs].sort((a, b) => b.trophies - a.trophies), format: (v: number) => v + " بطولة" },
-    { key: "budget", label: "أعلى ميزانية نادي", icon: Wallet, color: "text-cyan-300", data: [...clubs].sort((a, b) => b.budget - a.budget), format: (v: number) => (v / 1_000_000).toFixed(1) + "م" },
+    { key: "wins", label: "أعلى سلسلة انتصارات", icon: Flame, color: "text-emerald-300", data: pick(remote?.clubs.wins, [...clubs].sort((a, b) => b.wins - a.wins)), format: (v: number) => v + " فوز" },
+    { key: "trophies", label: "الأكثر تحصيلاً للبطولات", icon: Trophy, color: "text-amber-300", data: pick(remote?.clubs.trophies, [...clubs].sort((a, b) => b.trophies - a.trophies)), format: (v: number) => v + " بطولة" },
+    { key: "budget", label: "أعلى ميزانية نادي", icon: Wallet, color: "text-cyan-300", data: pick(remote?.clubs.budget, [...clubs].sort((a, b) => b.budget - a.budget)), format: (v: number) => (v / 1_000_000).toFixed(1) + "م" },
   ];
 
   const playerStats = [
-    { key: "overall", label: "أعلى تقييم عام", icon: Medal, color: "text-cyan-300", data: [...players].sort((a, b) => b.overall - a.overall), format: (v: number) => v + " OVR" },
-    { key: "balance", label: "أعلى رصيد لاعب", icon: Wallet, color: "text-emerald-300", data: [...players].sort((a, b) => b.balance - a.balance), format: (v: number) => (v / 1000).toFixed(0) + "ك" },
+    { key: "overall", label: "أعلى تقييم عام", icon: Medal, color: "text-cyan-300", data: pick(remote?.players.overall, [...players].sort((a, b) => b.overall - a.overall)), format: (v: number) => v + " OVR" },
+    { key: "balance", label: "أعلى رصيد لاعب", icon: Wallet, color: "text-emerald-300", data: pick(remote?.players.balance, [...players].sort((a, b) => b.balance - a.balance)), format: (v: number) => (v / 1000).toFixed(0) + "ك" },
   ];
 
   const stats = tab === "clubs" ? clubStats : playerStats;
