@@ -143,11 +143,14 @@ router.post(
     );
     const from = sender.rows[0];
     if (!from) return fail(res, 401, "unauthorized");
-    const canInvite = from.role === "president" || from.role === "scout" || ["vice", "scout"].includes(from.club_rank);
-    if (!canInvite || !from.club_id) return fail(res, 403, "managers_only");
+    if (!from.club_id) return fail(res, 403, "managers_only");
 
-    const club = await pool.query("SELECT 1 FROM clubsa_social_clubs WHERE id = $1", [from.club_id]);
+    // الصلاحية من بيانات يتحكم بها الخادم فقط (رئيس النادي المسجّل أو رتبة نائب/كشاف)،
+    // لأن role و club_id في ملف المستخدم يرسلها المتصفح ولا يُوثق بها.
+    const club = await pool.query<{ president_id: string }>("SELECT president_id FROM clubsa_social_clubs WHERE id = $1", [from.club_id]);
     if (!club.rowCount) return fail(res, 409, "club_not_synced");
+    const isOwner = club.rows[0].president_id === id;
+    if (!isOwner && !["vice", "scout"].includes(from.club_rank)) return fail(res, 403, "managers_only");
 
     const target = await pool.query<{ role: string; club_id: string | null }>(
       "SELECT role, club_id FROM clubsa_social_users WHERE id = $1",
