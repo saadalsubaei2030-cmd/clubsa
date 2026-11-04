@@ -1,0 +1,17 @@
+# نشر خادم CLUBSA على Render (الخطة المجانية) مع قاعدة Neon المجانية.
+# DATABASE_URL يُضاف يدويًا من لوحة Render (رابط الاتصال من Neon) ولا يُكتب هنا.
+services:
+  - type: web
+    name: clubsa-api
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --filter @workspace/api-server... && pnpm --filter @workspace/api-server run build
+    startCommand: pnpm --filter @workspace/api-server run start
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
