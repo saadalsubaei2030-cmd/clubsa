@@ -43,6 +43,15 @@ export function ensureTables(): Promise<void> {
         updated_at timestamptz NOT NULL DEFAULT now()
       );
       ALTER TABLE clubsa_social_users ADD COLUMN IF NOT EXISTS club_rank text NOT NULL DEFAULT 'member';
+      ALTER TABLE clubsa_social_users ADD COLUMN IF NOT EXISTS player_build jsonb;
+      CREATE TABLE IF NOT EXISTS clubsa_accounts (
+        email text PRIMARY KEY,
+        user_id text NOT NULL UNIQUE,
+        pw_salt text NOT NULL,
+        pw_hash text NOT NULL,
+        key_hash text NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
       CREATE TABLE IF NOT EXISTS clubsa_social_clubs (
         id text PRIMARY KEY,
         name text NOT NULL,
@@ -241,15 +250,20 @@ router.put(
     if (existing.rows[0] && !sameHash(existing.rows[0].key_hash, hash)) {
       return fail(res, 403, "key_mismatch");
     }
+    if (!existing.rows[0]) {
+      // معرّف مسجّل لحساب له كلمة مرور لا يُنشأ ملفه إلا بمفتاح هذا الحساب (يمنع حجز معرّف غيرك).
+      const account = await pool.query<{ key_hash: string }>("SELECT key_hash FROM clubsa_accounts WHERE user_id = $1", [id]);
+      if (account.rows[0] && !sameHash(account.rows[0].key_hash, hash)) return fail(res, 403, "key_mismatch");
+    }
 
     await pool.query(
       `INSERT INTO clubsa_social_users
-        (id, key_hash, name, username, role, region, ea_id, position, overall, avatar, club_id, club_name, is_free_agent, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13, now())
+        (id, key_hash, name, username, role, region, ea_id, position, overall, avatar, club_id, club_name, is_free_agent, player_build, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14, now())
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name, username = EXCLUDED.username, role = EXCLUDED.role,
          region = EXCLUDED.region, ea_id = EXCLUDED.ea_id, position = EXCLUDED.position,
-         overall = EXCLUDED.overall, avatar = EXCLUDED.avatar,
+         overall = EXCLUDED.overall, avatar = EXCLUDED.avatar, player_build = EXCLUDED.player_build,
          -- بعد صفقة انتقال يبقى النادي المسجّل على الخادم حتى يؤكد متصفح اللاعب استلامه
          club_id = CASE WHEN EXISTS (SELECT 1 FROM clubsa_market_wallets w WHERE w.kind = 'user' AND w.owner_id = clubsa_social_users.id AND w.assignment_pending)
                         THEN clubsa_social_users.club_id ELSE EXCLUDED.club_id END,
@@ -261,7 +275,7 @@ router.put(
                                       THEN clubsa_social_users.club_id ELSE EXCLUDED.club_id END) IS DISTINCT FROM clubsa_social_users.club_id
                           THEN 'member' ELSE clubsa_social_users.club_rank END,
          updated_at = now()`,
-      [id, hash, p.name, p.username, p.role, p.region, p.eaId, p.position, p.overall, p.avatar, p.clubId, p.clubName, p.isFreeAgent],
+      [id, hash, p.name, p.username, p.role, p.region, p.eaId, p.position, p.overall, p.avatar, p.clubId, p.clubName, p.isFreeAgent, p.build],
     );
 
     if (p.club) {

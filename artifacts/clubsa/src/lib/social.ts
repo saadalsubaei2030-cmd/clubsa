@@ -77,6 +77,7 @@ export type SyncPayload = {
   clubId: string | null;
   clubName: string | null;
   isFreeAgent: boolean;
+  build?: unknown;
   club: {
     id: string;
     name: string;
@@ -101,6 +102,17 @@ function randomKey(): string {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** يحفظ مفتاح هذا الجهاز بعد تسجيل الدخول (يصدره الخادم). */
+export function setSocialKey(key: string): void {
+  if (!/^[a-f0-9]{32}$/.test(key)) return;
+  try {
+    localStorage.setItem(KEY_STORAGE, key);
+  } catch {
+    // التخزين غير متاح: نحتفظ بالمفتاح في الذاكرة لهذه الجلسة.
+  }
+  memoryKey = key;
 }
 
 export function getSocialKey(): string {
@@ -206,6 +218,7 @@ export function buildSyncPayload(auth: AuthUser): SyncPayload {
     clubId: auth.clubId,
     clubName: auth.clubId ? auth.club : null,
     isFreeAgent: auth.isFreeAgent,
+    build: auth.playerBuild ?? null,
     club:
       club && club.president_id === auth.id
         ? {
@@ -326,4 +339,60 @@ export type Leaderboards = {
 
 export function fetchLeaderboards(signal?: AbortSignal) {
   return request<Leaderboards>("/leaderboards", { base: "/api", signal });
+}
+
+/* ───────────── حسابات الخادم ───────────── */
+
+export type ServerProfile = {
+  id: string;
+  name: string;
+  username: string | null;
+  role: "president" | "player" | "scout";
+  region: string;
+  eaId: string | null;
+  position: string | null;
+  overall: number;
+  avatar: string | null;
+  clubId: string | null;
+  clubName: string | null;
+  isFreeAgent: boolean;
+  clubRank: "member" | "vice" | "scout";
+  build: unknown;
+};
+
+export type ServerClub = {
+  id: string;
+  name: string;
+  region: string;
+  logo: string | null;
+  presidentId: string;
+  primaryColor: string;
+  secondaryColor: string;
+  wins: number;
+  draws: number;
+  losses: number;
+  trophies: number;
+};
+
+export function registerAccount(email: string, password: string, userId: string) {
+  return request<{ ok: true }>("/auth/register", {
+    base: "/api",
+    method: "POST",
+    body: { email, password, userId, key: getSocialKey() },
+  });
+}
+
+export function loginAccount(email: string, password: string) {
+  return request<{ userId: string; key: string }>("/auth/login", {
+    base: "/api",
+    method: "POST",
+    body: { email, password },
+  });
+}
+
+export function fetchAccountProfile(userId: string) {
+  return request<{ profile: ServerProfile | null; club: ServerClub | null }>("/auth/me", {
+    base: "/api",
+    userId,
+  });
 }
