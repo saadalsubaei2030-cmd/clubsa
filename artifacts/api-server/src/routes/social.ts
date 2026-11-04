@@ -257,6 +257,9 @@ router.put(
                           THEN clubsa_social_users.club_name ELSE EXCLUDED.club_name END,
          is_free_agent = CASE WHEN EXISTS (SELECT 1 FROM clubsa_market_wallets w WHERE w.kind = 'user' AND w.owner_id = clubsa_social_users.id AND w.assignment_pending)
                               THEN clubsa_social_users.is_free_agent ELSE EXCLUDED.is_free_agent END,
+         club_rank = CASE WHEN (CASE WHEN EXISTS (SELECT 1 FROM clubsa_market_wallets w WHERE w.kind = 'user' AND w.owner_id = clubsa_social_users.id AND w.assignment_pending)
+                                      THEN clubsa_social_users.club_id ELSE EXCLUDED.club_id END) IS DISTINCT FROM clubsa_social_users.club_id
+                          THEN 'member' ELSE clubsa_social_users.club_rank END,
          updated_at = now()`,
       [id, hash, p.name, p.username, p.role, p.region, p.eaId, p.position, p.overall, p.avatar, p.clubId, p.clubName, p.isFreeAgent],
     );
