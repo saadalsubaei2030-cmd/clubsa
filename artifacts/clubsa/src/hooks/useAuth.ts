@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { initStore, getSession, setSession, getProfile, getClubById, signUp as mockSignUp, signIn as mockSignIn, signOut as mockSignOut, completeProfile as mockCompleteProfile, updateProfileAvatar, updatePlayerBuild, updateProfileDetails } from "@/lib/mockData";
+import { initStore, getSession, setSession, getProfile, getClubById, getUsers, saveUsers, newUserId, findLegacyLocalUser, clearLocalPassword, hydrateFromServer, signUp as mockSignUp, signOut as mockSignOut, completeProfile as mockCompleteProfile, updateProfileAvatar, updatePlayerBuild, updateProfileDetails } from "@/lib/mockData";
+import { SocialError, fetchAccountProfile, getSocialKey, loginAccount, registerAccount, setSocialKey } from "@/lib/social";
 import type { AuthUser, PlayerBuild, UserRole } from "@/types";
 
 initStore();
@@ -59,18 +60,58 @@ export function useAuth() {
     };
   }
 
+  const authErrorText = (error: unknown): string => {
+    if (error instanceof SocialError) {
+      if (error.code === "email_taken") return "هذا البريد مسجل بالفعل";
+      if (error.code === "weak_password") return "كلمة المرور قصيرة جدًا";
+      if (error.code === "invalid_login") return "بيانات الدخول غير صحيحة";
+      if (error.status === 429) return "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.";
+      if (error.status === 404) return "الخدمة غير متاحة حاليًا. حاول بعد قليل.";
+    }
+    return "تعذّر الاتصال بالخادم. تحقق من الإنترنت وحاول مرة أخرى.";
+  };
+
+  // الحسابات على الخادم: كلمة المرور تُشفَّر هناك ولا تبقى في المتصفح.
   const signUp = async (email: string, password: string) => {
-    const result = mockSignUp(email, password);
+    const newId = newUserId();
+    const result = mockSignUp(email, password, { uid: newId });
     if ("error" in result) return { error: { message: result.error }, data: null };
+    try {
+      await registerAccount(email.trim(), password, result.uid);
+    } catch (error) {
+      saveUsers(getUsers().filter((u) => u.id !== result.uid));
+      mockSignOut();
+      return { error: { message: authErrorText(error) }, data: null };
+    }
     return { error: null, data: { user: { id: result.uid } } };
   };
 
   const signIn = async (email: string, password: string) => {
-    const result = mockSignIn(email, password);
-    if ("error" in result) return { error: { message: result.error }, data: null };
-    const authUser = buildAuthUser(result.uid);
+    const cleanEmail = email.trim();
+    let userId: string;
+    try {
+      const login = await loginAccount(cleanEmail, password);
+      setSocialKey(login.key);
+      userId = login.userId;
+      const remote = await fetchAccountProfile(userId);
+      hydrateFromServer(cleanEmail, remote.profile, remote.club, userId);
+    } catch (error) {
+      // حساب قديم في هذا المتصفح لم يُنقل للخادم بعد: نرحّله الآن بكلمة مروره الحالية.
+      const legacy = error instanceof SocialError && error.code === "invalid_login" ? findLegacyLocalUser(cleanEmail, password) : null;
+      if (!legacy) return { error: { message: authErrorText(error) }, data: null };
+      try {
+        await registerAccount(cleanEmail, password, legacy.id);
+      } catch (registerError) {
+        return { error: { message: authErrorText(registerError) }, data: null };
+      }
+      clearLocalPassword(legacy.id);
+      setSession({ uid: legacy.id });
+      getSocialKey();
+      userId = legacy.id;
+    }
+    const authUser = buildAuthUser(userId);
     if (authUser) setUser(authUser);
-    return { error: null, data: { user: { id: result.uid } } };
+    return { error: null, data: { user: { id: userId } } };
   };
 
   const signOut = async () => {

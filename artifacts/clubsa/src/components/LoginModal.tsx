@@ -54,7 +54,7 @@ export default function LoginModal({
     mode === "register" ? validateRegistrationEmail(value) : validateLoginEmail(value);
 
   const emailValid = validateEmail(email) === "";
-  const canStep1 = emailValid && password.trim().length >= 4;
+  const canStep1 = emailValid && password.trim().length >= (mode === "register" ? 8 : 4);
   const canStep2 =
     name.trim().length >= 2 &&
     role !== "" &&
@@ -66,7 +66,12 @@ export default function LoginModal({
     setEmailTouched(true);
     const err = validateEmail(email);
     setEmailError(err);
-    if (err || password.trim().length < 4) return;
+    const minLength = mode === "register" ? 8 : 4;
+    if (err) return;
+    if (password.trim().length < minLength) {
+      setAuthError(`كلمة المرور يجب ألا تقل عن ${minLength} أحرف`);
+      return;
+    }
 
     setSubmitting(true);
     if (mode === "register") {

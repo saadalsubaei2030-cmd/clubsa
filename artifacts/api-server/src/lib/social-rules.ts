@@ -74,12 +74,19 @@ export type ParsedProfile = {
   clubId: string | null;
   clubName: string | null;
   isFreeAgent: boolean;
+  build: string | null; // JSON نصّي لبناء اللاعب
   club: ParsedClub | null;
 };
 
 export type ProfileParse =
   | { ok: true; value: ParsedProfile }
   | { ok: false; error: "invalid_name" | "invalid_role" };
+
+function buildJson(value: unknown): string | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const text = JSON.stringify(value);
+  return text.length <= 4000 ? text : null;
+}
 
 export function parseProfileBody(body: unknown): ProfileParse {
   const src = (typeof body === "object" && body !== null ? body : {}) as Record<string, unknown>;
@@ -128,6 +135,7 @@ export function parseProfileBody(body: unknown): ProfileParse {
       clubId,
       clubName: clubId ? maskForbidden(optText(src.clubName, 60) ?? "") || null : null,
       isFreeAgent: src.isFreeAgent === true,
+      build: buildJson(src.build),
       club,
     },
   };

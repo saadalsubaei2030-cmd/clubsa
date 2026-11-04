@@ -65,6 +65,10 @@ const LS_LISTINGS = "clubsa_listings";
 const LS_CLUB_INVITES = "clubsa_club_invites";
 export const DEFAULT_WALLET_BALANCE = 100000;
 
+export function newUserId(): string {
+  return uid();
+}
+
 function uid(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
@@ -200,18 +204,20 @@ export function setSession(s: { uid: string } | null) {
 export function signUp(
   email: string,
   password: string,
+  options?: { uid?: string },
 ): { uid: string } | { error: string } {
   const emailError = validateRegistrationEmail(email);
   if (emailError) return { error: emailError };
   const users = getUsers();
   if (users.some((u) => u.email === email))
     return { error: "هذا البريد مسجل بالفعل" };
-  const newUid = uid();
+  const newUid = options?.uid ?? uid();
   const newUser: MockProfile = {
     id: newUid,
     name: "",
     email,
-    password,
+    // كلمة المرور محفوظة مشفّرة على الخادم فقط، ولا تُخزَّن في المتصفح.
+    password: "",
     role: "player",
     region: "",
     username: `player_${newUid.slice(-6)}`,
@@ -242,6 +248,124 @@ export function signIn(
   if (!user) return { error: "بيانات الدخول غير صحيحة" };
   setSession({ uid: user.id });
   return { uid: user.id };
+}
+
+/** حساب قديم محفوظ في هذا المتصفح بكلمة مرور نصية (قبل نقل الحسابات للخادم). */
+export function findLegacyLocalUser(email: string, password: string): MockProfile | null {
+  const target = email.trim().toLowerCase();
+  return (
+    getUsers().find((u) => u.email.trim().toLowerCase() === target && u.password !== "" && u.password === password) ?? null
+  );
+}
+
+/** بعد نجاح الترحيل للخادم تُمسح كلمة المرور النصية من المتصفح. */
+export function clearLocalPassword(userId: string) {
+  const users = getUsers();
+  const user = users.find((u) => u.id === userId);
+  if (!user) return;
+  user.password = "";
+  saveUsers(users);
+}
+
+/** يستعيد الحساب من الخادم على هذا الجهاز ويفتح الجلسة. */
+export function hydrateFromServer(
+  email: string,
+  profile: {
+    id: string;
+    name: string;
+    username: string | null;
+    role: UserRole;
+    region: string;
+    eaId: string | null;
+    position: string | null;
+    overall: number;
+    avatar: string | null;
+    clubId: string | null;
+    isFreeAgent: boolean;
+    clubRank: string;
+    build: unknown;
+  } | null,
+  club: {
+    id: string;
+    name: string;
+    region: string;
+    logo: string | null;
+    presidentId: string;
+    primaryColor: string;
+    secondaryColor: string;
+    wins: number;
+    draws: number;
+    losses: number;
+    trophies: number;
+  } | null,
+  userId: string,
+): void {
+  const users = getUsers();
+  let user = users.find((u) => u.id === userId);
+  if (!user) {
+    user = {
+      id: userId,
+      name: "",
+      email,
+      password: "",
+      role: "player",
+      region: "",
+      username: `player_${userId.slice(-6)}`,
+      ea_id: `EA-${userId.slice(-6).toUpperCase()}`,
+      referral_code: `CLUBSA-${userId.slice(-8).toUpperCase()}`,
+      referred_by: null,
+      is_free_agent: true,
+      join_status: "approved",
+      club_id: null,
+      position: "CM",
+      overall: 85,
+      avatar: null,
+      balance: DEFAULT_WALLET_BALANCE,
+      player_build: null,
+    };
+    users.push(user);
+  }
+  user.email = email;
+  user.password = "";
+  if (profile) {
+    user.name = profile.name;
+    user.username = profile.username ?? user.username;
+    user.ea_id = profile.eaId ?? user.ea_id;
+    user.role = profile.role;
+    user.region = profile.region;
+    user.position = profile.position;
+    user.overall = profile.overall;
+    user.avatar = profile.avatar;
+    user.club_id = profile.clubId;
+    user.is_free_agent = profile.isFreeAgent;
+    user.club_rank = profile.clubRank;
+    user.join_status = "approved";
+    if (profile.build && typeof profile.build === "object") user.player_build = profile.build as PlayerBuild;
+  }
+  saveUsers(users);
+
+  if (club) {
+    const clubs = getClubs();
+    const existing = clubs.find((c) => c.id === club.id);
+    const record: MockClub = {
+      id: club.id,
+      name: club.name,
+      president_id: club.presidentId,
+      region: club.region,
+      logo: club.logo,
+      primary_color: club.primaryColor,
+      secondary_color: club.secondaryColor,
+      wins: club.wins,
+      draws: club.draws,
+      losses: club.losses,
+      trophies: club.trophies,
+      budget: existing?.budget ?? 10000000,
+    };
+    if (existing) Object.assign(existing, record);
+    else clubs.push(record);
+    saveClubs(clubs);
+  }
+  setSession({ uid: userId });
 }
 
 export function signOut() {
