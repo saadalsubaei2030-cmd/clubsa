@@ -8,7 +8,7 @@ import type { AuthUser, ChatMessage } from "@/types";
 // يمكن تغيير العنوان من متغير البيئة VITE_API_BASE_URL وقت البناء.
 const API_BASE = (
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
-  "https://clubsa--saadalsubaei203.replit.app"
+  "https://clubsa-api.onrender.com"
 ).replace(/\/+$/, "");
 
 type ServerMessage = {
