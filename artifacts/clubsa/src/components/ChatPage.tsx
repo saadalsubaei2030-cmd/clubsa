@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, MessageCircle, Lock } from "lucide-react";
-import DirectoryPanel from "@/components/DirectoryPanel";
+import { Send, MessageCircle, Lock, User } from "lucide-react";
+import DirectoryPanel, { ProfileViewer } from "@/components/DirectoryPanel";
+import { SocialError, fetchAvatars, sendPublicChatMessage } from "@/lib/social";
 import { FORBIDDEN_WORDS } from "@/data";
 import type { AuthUser, ChatMessage } from "@/types";
 
@@ -20,7 +21,7 @@ type ServerMessage = {
 };
 
 function toChatMessage(m: ServerMessage): ChatMessage {
-  return { id: m.id, sender: m.senderName, text: m.text, time: timeAgo(m.createdAt) };
+  return { id: m.id, senderId: m.senderId, sender: m.senderName, text: m.text, time: timeAgo(m.createdAt) };
 }
 
 async function fetchMessages(signal?: AbortSignal): Promise<ServerMessage[]> {
@@ -31,29 +32,6 @@ async function fetchMessages(signal?: AbortSignal): Promise<ServerMessage[]> {
   if (!response.ok) throw new Error(`load_failed_${response.status}`);
   const data = (await response.json()) as { messages?: ServerMessage[] };
   return Array.isArray(data.messages) ? data.messages : [];
-}
-
-class SendError extends Error {
-  status: number;
-  constructor(status: number) {
-    super(`send_failed_${status}`);
-    this.status = status;
-  }
-}
-
-async function postMessage(body: {
-  senderId: string;
-  senderName: string;
-  text: string;
-}): Promise<ServerMessage> {
-  const response = await fetch(`${API_BASE}/api/chat/public`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) throw new SendError(response.status);
-  const data = (await response.json()) as { message: ServerMessage };
-  return data.message;
 }
 
 function filterMessage(text: string): string {
@@ -91,6 +69,9 @@ export default function ChatPage({
   const [showGuestAlert, setShowGuestAlert] = useState(false);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [avatars, setAvatars] = useState<Record<string, string | null>>({});
+  const requestedAvatars = useRef<Set<string>>(new Set());
+  const [viewUser, setViewUser] = useState<string | null>(null);
 
   const isGuest = !auth;
 
@@ -123,6 +104,19 @@ export default function ChatPage({
     };
   }, []);
 
+  // نجلب صور المرسلين مرة واحدة لكل مستخدم ونحفظها (بدل إرسالها مع كل رسالة).
+  useEffect(() => {
+    const missing = [...new Set(messages.map((m) => m.senderId).filter((id): id is string => !!id))].filter(
+      (id) => !requestedAvatars.current.has(id),
+    );
+    if (missing.length === 0) return;
+    const batch = missing.slice(0, 50);
+    batch.forEach((id) => requestedAvatars.current.add(id));
+    fetchAvatars(batch)
+      .then((data) => setAvatars((current) => ({ ...current, ...Object.fromEntries(batch.map((id) => [id, data.avatars[id] ?? null])) })))
+      .catch(() => batch.forEach((id) => requestedAvatars.current.delete(id)));
+  }, [messages]);
+
   // النزول لآخر رسالة فقط عند وصول رسالة جديدة (وليس عند تحديث الأوقات)
   const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : 0;
   useEffect(() => {
@@ -141,20 +135,16 @@ export default function ChatPage({
     setSending(true);
     setSendError("");
     try {
-      const saved = await postMessage({
-        senderId: auth.id,
-        senderName: auth.name,
-        text,
-      });
+      const { message: saved } = await sendPublicChatMessage(auth.id, text);
       setMessages((prev) =>
         prev.some((m) => m.id === saved.id) ? prev : [...prev, toChatMessage(saved)],
       );
       setDraft("");
     } catch (error) {
       setSendError(
-        error instanceof SendError && error.status === 429
+        error instanceof SocialError && error.status === 429
           ? "أرسلت رسائل كثيرة، انتظر قليلًا ثم حاول مرة أخرى."
-          : error instanceof SendError && error.status === 400
+          : error instanceof SocialError && error.status === 400
             ? "تعذّر إرسال الرسالة. تأكد أنها غير فارغة وأقل من 500 حرف."
             : "تعذّر إرسال الرسالة. تحقق من الاتصال وحاول مرة أخرى.",
       );
@@ -215,12 +205,29 @@ export default function ChatPage({
               </div>
             ) : (
               messages.map((m) => (
-                <div key={m.id} className="text-sm">
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-bold text-cyan-300">{m.sender}</span>
-                    <span className="text-[10px] text-slate-500">{m.time}</span>
+                <div key={m.id} className="flex items-start gap-2.5 text-sm">
+                  <button
+                    type="button"
+                    disabled={!m.senderId}
+                    onClick={() => m.senderId && setViewUser(m.senderId)}
+                    aria-label={`عرض ملف ${m.sender}`}
+                    className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400"
+                  >
+                    {m.senderId && avatars[m.senderId] ? (
+                      <img src={avatars[m.senderId] as string} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-800">
+                        <User size={15} className="text-cyan-300" />
+                      </span>
+                    )}
+                  </button>
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-bold text-cyan-300">{m.sender}</span>
+                      <span className="text-[10px] text-slate-500">{m.time}</span>
+                    </div>
+                    <p className="text-slate-200 mt-0.5 break-words">{m.text}</p>
                   </div>
-                  <p className="text-slate-200 mt-0.5">{m.text}</p>
                 </div>
               ))
             )}
@@ -257,6 +264,8 @@ export default function ChatPage({
 
         <DirectoryPanel auth={auth} onRequireLogin={onRequireLogin} />
       </div>
+
+      {viewUser && <ProfileViewer userId={viewUser} auth={auth} onClose={() => setViewUser(null)} onRequireLogin={onRequireLogin} />}
 
       {showGuestAlert && (
         <div

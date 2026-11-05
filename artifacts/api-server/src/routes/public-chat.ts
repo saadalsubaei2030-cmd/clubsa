@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request } from "express";
 import { desc, gt, asc } from "drizzle-orm";
 import { db, pool, publicChatTable } from "@workspace/db";
 import { createRateLimiter, parseChatBody } from "../lib/public-chat-rules";
+import { authenticate, ensureTables as ensureSocialTables } from "./social";
 
 const router: IRouter = Router();
 
@@ -66,13 +67,34 @@ router.get("/chat/public", async (req, res): Promise<void> => {
 });
 
 router.post("/chat/public", async (req, res): Promise<void> => {
-  const parsed = parseChatBody(req.body);
-  if (!parsed.ok) {
-    res.status(400).json({ error: parsed.error });
-    return;
-  }
   if (!perClient.allow(clientKey(req)) || !siteWide.allow("all")) {
     res.status(429).json({ error: "rate_limited" });
+    return;
+  }
+
+  // المرسل يُحدَّد من الحساب الموثّق (المعرّف + المفتاح السري) وليس مما يكتبه المتصفح،
+  // حتى لا ينتحل أحد اسم أو صورة غيره.
+  let senderId: string | null;
+  let senderName: string | undefined;
+  try {
+    await ensureSocialTables();
+    senderId = await authenticate(req);
+    if (!senderId) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const { rows } = await pool.query<{ name: string }>("SELECT name FROM clubsa_social_users WHERE id = $1", [senderId]);
+    senderName = rows[0]?.name;
+  } catch (error) {
+    req.log?.error({ err: error }, "public chat: failed to verify sender");
+    res.status(500).json({ error: "chat_unavailable" });
+    return;
+  }
+
+  const source = typeof req.body === "object" && req.body !== null ? (req.body as Record<string, unknown>) : {};
+  const parsed = parseChatBody({ senderId, senderName, text: source.text });
+  if (!parsed.ok) {
+    res.status(400).json({ error: parsed.error });
     return;
   }
 

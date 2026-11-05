@@ -351,6 +351,25 @@ router.get(
   }),
 );
 
+/** صور مصغّرة لعدة مستخدمين دفعة واحدة (لشات الدردشة العامة). */
+router.get(
+  "/social/avatars",
+  route(async (req, res) => {
+    if (!searchLimit.allow(clientKey(req))) return fail(res, 429, "rate_limited");
+    const ids = [...new Set(String(req.query.ids ?? "").split(",").filter(isValidId))].slice(0, 50);
+    res.setHeader("Cache-Control", "public, max-age=300");
+    if (ids.length === 0) {
+      res.json({ avatars: {} });
+      return;
+    }
+    const { rows } = await pool.query<{ id: string; avatar: string | null }>(
+      "SELECT id, CASE WHEN length(avatar) <= 20000 THEN avatar END AS avatar FROM clubsa_social_users WHERE id = ANY($1::text[])",
+      [ids],
+    );
+    res.json({ avatars: Object.fromEntries(rows.map((r) => [r.id, r.avatar])) });
+  }),
+);
+
 router.get(
   "/social/users/:id",
   route(async (req, res) => {

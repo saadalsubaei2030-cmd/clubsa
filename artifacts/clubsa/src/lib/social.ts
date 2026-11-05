@@ -341,6 +341,16 @@ export function fetchLeaderboards(signal?: AbortSignal) {
   return request<Leaderboards>("/leaderboards", { base: "/api", signal });
 }
 
+export function fetchAvatars(ids: string[], signal?: AbortSignal) {
+  return request<{ avatars: Record<string, string | null> }>(`/avatars?ids=${ids.map(encodeURIComponent).join(",")}`, { signal });
+}
+
+export type PublicChatMessage = { id: number; senderId: string; senderName: string; text: string; createdAt: string };
+
+export function sendPublicChatMessage(userId: string, text: string) {
+  return request<{ message: PublicChatMessage }>("/chat/public", { base: "/api", method: "POST", userId, body: { text } });
+}
+
 /* ───────────── لوحة الإعلانات (أبحث عن نادي / مطلوب لاعب) ───────────── */
 
 export type RecruitKind = "need_club" | "need_player";
