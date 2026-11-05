@@ -65,7 +65,7 @@ export type AuthUser = {
   playerBuild?: PlayerBuild | null;
 };
 
-export type TabId = "chat" | "calculator" | "tournaments" | "market" | "news" | "leaderboards";
+export type TabId = "chat" | "calculator" | "tournaments" | "market" | "recruit" | "news" | "leaderboards";
 
 export type Tab = { id: TabId; label: string };
 
