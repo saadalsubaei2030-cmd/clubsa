@@ -335,7 +335,32 @@ function BuildsTab() {
   );
 }
 
-function Pitch({ dots }: { dots: [number, number][] }) {
+const FOCUS_AR: Record<string, string> = { Attack: "هجومي", Balanced: "متوازن", Defend: "دفاعي", Roaming: "متحرك" };
+const BUILD_AR: Record<string, string> = { Balanced: "متوازن", Counter: "مرتدة" };
+const DEFENSE_AR: Record<string, string> = { Balanced: "متوازن", High: "عالي" };
+
+function CopyCode({ code }: { code: string }) {
+  const [done, setDone] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        try {
+          void navigator.clipboard?.writeText(code);
+          setDone(true);
+          window.setTimeout(() => setDone(false), 1500);
+        } catch {
+          /* النسخ غير متاح */
+        }
+      }}
+      className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs font-bold text-slate-200 hover:border-emerald-400"
+    >
+      {done ? "تم النسخ ✓" : "نسخ الكود"}
+    </button>
+  );
+}
+
+function Pitch({ dots, labels }: { dots: [number, number][]; labels?: string[] }) {
   return (
     <div
       className="relative mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-emerald-900/70"
@@ -359,6 +384,17 @@ function Pitch({ dots }: { dots: [number, number][] }) {
           style={{ left: `${x}%`, top: `${y}%`, background: i === 0 ? "#fbbf24" : undefined }}
         />
       ))}
+      {labels &&
+        dots.map(([x, y], i) => (
+          <span
+            key={`l${i}`}
+            dir="ltr"
+            className="pointer-events-none absolute -translate-x-1/2 text-[10px] font-bold text-white/85"
+            style={{ left: `${x}%`, top: `calc(${y}% + 14px)` }}
+          >
+            {labels[i]}
+          </span>
+        ))}
     </div>
   );
 }
@@ -392,12 +428,23 @@ function TacticsTab() {
       </div>
 
       <div className="grid items-start gap-6 md:grid-cols-2">
-        <Pitch dots={f.dots} />
+        <Pitch dots={f.dots} labels={f.slots?.map((x) => x.pos)} />
         <div className="space-y-4">
           <div>
             <span className="rounded-md bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-300">{f.tag}</span>
             <p className="mt-3 text-sm leading-relaxed text-slate-300">{f.desc}</p>
           </div>
+          {f.setup && (
+            <div className="flex flex-wrap gap-2 text-xs font-bold">
+              <span className="rounded-lg bg-slate-800 px-2.5 py-1 text-slate-200">
+                بناء الهجمة: {BUILD_AR[f.setup.buildUp] ?? f.setup.buildUp}
+              </span>
+              <span className="rounded-lg bg-slate-800 px-2.5 py-1 text-slate-200">
+                الدفاع: {DEFENSE_AR[f.setup.defense] ?? f.setup.defense}
+                {f.setup.lineHeight ? ` (${f.setup.lineHeight})` : ""}
+              </span>
+            </div>
+          )}
           {f.lines.map((l) => (
             <div key={l.label} className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
               <p className="mb-1 text-sm font-extrabold text-white" style={display}>
@@ -406,6 +453,34 @@ function TacticsTab() {
               <p className="text-sm leading-relaxed text-slate-400">{l.roles}</p>
             </div>
           ))}
+          {f.slots && (
+            <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <p className="mb-2 text-sm font-extrabold text-white" style={display}>
+                أدوار اللاعبين
+              </p>
+              <ul className="space-y-1 text-sm text-slate-400">
+                {f.slots.map((x, i) => (
+                  <li key={i} className="flex items-center justify-between gap-3">
+                    <span dir="ltr" className="font-bold text-slate-200">
+                      {x.pos} · {x.role}
+                    </span>
+                    <span className="text-xs text-slate-500">{FOCUS_AR[x.focus] ?? x.focus}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {f.code && (
+            <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+              <div>
+                <p className="text-xs text-slate-500">كود التكتيك (للاستيراد داخل اللعبة)</p>
+                <p dir="ltr" className="mt-1 select-all font-mono text-sm text-slate-200">
+                  {f.code}
+                </p>
+              </div>
+              <CopyCode code={f.code} />
+            </div>
+          )}
         </div>
       </div>
 
