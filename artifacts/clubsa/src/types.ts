@@ -100,6 +100,7 @@ export type CapProfile = {
 
 export type ChatMessage = {
   id: number;
+  senderId?: string;
   sender: string;
   text: string;
   time: string;
