@@ -343,6 +343,10 @@ export const ARCHETYPES: Record<string, Archetype> = {
   },
 };
 
+export type TacticFocus = "Attack" | "Balanced" | "Defend" | "Roaming";
+
+export type TacticSlot = { pos: string; role: string; focus: TacticFocus };
+
 export type FormationGuide = {
   id: string;
   name: string;
@@ -351,6 +355,12 @@ export type FormationGuide = {
   lines: { label: string; roles: string }[];
   // مواقع اللاعبين على المستطيل (x,y بالنسبة المئوية؛ y=0 هجوم)
   dots: [number, number][];
+  // أدوار كل لاعب بنفس ترتيب dots (اختياري)
+  slots?: TacticSlot[];
+  // إعدادات التكتيك داخل اللعبة (اختياري)
+  setup?: { buildUp: string; defense: string; lineHeight?: number };
+  // كود التكتيك للنسخ داخل اللعبة (اختياري)
+  code?: string;
 };
 
 export const FORMATIONS: FormationGuide[] = [
@@ -382,25 +392,82 @@ export const FORMATIONS: FormationGuide[] = [
     id: "4312",
     name: "4-3-1-2",
     tag: "مهاجمان",
-    desc: "للي يبي ثنائي هجومي وصانع خلفهم.",
+    desc: "ثنائي هجومي (قناص + مهاجم وهمي) وخلفهم صانع، مع ثلاثي وسط أحدهم ارتكاز يحمي القلب.",
     lines: [
-      { label: "دفاع", roles: "ظهيران + قلبان" },
-      { label: "وسط", roles: "وسطان (Box-to-Box) + ارتكاز (Holding) + ظل مهاجم" },
-      { label: "هجوم", roles: "مهاجمان (Advanced Forward)" },
+      { label: "دفاع", roles: "ظهيران (Fullback) + قلبان (Defender - Defend)" },
+      { label: "وسط", roles: "وسطان (Half-Winger) + ارتكاز (Holding - Defend) + صانع (Playmaker) خلف المهاجمين" },
+      { label: "هجوم", roles: "قناص (Poacher - Attack) + مهاجم وهمي (False 9 - Attack)" },
     ],
     dots: [[50, 92], [15, 72], [38, 74], [62, 74], [85, 72], [28, 54], [50, 58], [72, 54], [50, 34], [36, 14], [64, 14]],
+    slots: [
+      { pos: "GK", role: "Keeper", focus: "Balanced" },
+      { pos: "LB", role: "Fullback", focus: "Balanced" },
+      { pos: "CB", role: "Defender", focus: "Defend" },
+      { pos: "CB", role: "Defender", focus: "Defend" },
+      { pos: "RB", role: "Fullback", focus: "Balanced" },
+      { pos: "CM", role: "Half-Winger", focus: "Balanced" },
+      { pos: "CM", role: "Holding", focus: "Defend" },
+      { pos: "CM", role: "Half-Winger", focus: "Balanced" },
+      { pos: "CAM", role: "Playmaker", focus: "Balanced" },
+      { pos: "ST", role: "Poacher", focus: "Attack" },
+      { pos: "ST", role: "False 9", focus: "Attack" },
+    ],
+    setup: { buildUp: "Balanced", defense: "Balanced", lineHeight: 50 },
+    code: "xoJXT$B67v%x",
   },
   {
     id: "41212",
     name: "4-1-2-1-2 ضيّق",
     tag: "تمرير سريع",
-    desc: "معين على اللعب القصير في العمق.",
+    desc: "معين على اللعب القصير في العمق مع هجمات مرتدة وخط دفاع مرتفع.",
     lines: [
-      { label: "دفاع", roles: "ظهيران + قلبان" },
-      { label: "وسط", roles: "ارتكاز + وسطان (Box-to-Box) + ظل مهاجم" },
-      { label: "هجوم", roles: "مهاجمان (Advanced Forward)" },
+      { label: "دفاع", roles: "ظهيران (Fullback) + قلبان (Defender - Defend) + حارس يلعب كمكنسة (Sweeper Keeper)" },
+      { label: "وسط", roles: "ارتكاز متحرك (Holding - Roaming) + وسطان (Box-to-Box + Half-Winger) + ظل مهاجم (Shadow Striker)" },
+      { label: "هجوم", roles: "قناص (Poacher - Attack) + مهاجم وهمي (False 9 - Attack)" },
     ],
     dots: [[50, 92], [15, 72], [38, 74], [62, 74], [85, 72], [50, 60], [33, 48], [67, 48], [50, 32], [36, 14], [64, 14]],
+    slots: [
+      { pos: "GK", role: "Sweeper Keeper", focus: "Balanced" },
+      { pos: "LB", role: "Fullback", focus: "Balanced" },
+      { pos: "CB", role: "Defender", focus: "Defend" },
+      { pos: "CB", role: "Defender", focus: "Defend" },
+      { pos: "RB", role: "Fullback", focus: "Balanced" },
+      { pos: "CDM", role: "Holding", focus: "Roaming" },
+      { pos: "CM", role: "Box-to-Box", focus: "Balanced" },
+      { pos: "CM", role: "Half-Winger", focus: "Balanced" },
+      { pos: "CAM", role: "Shadow Striker", focus: "Attack" },
+      { pos: "ST", role: "Poacher", focus: "Attack" },
+      { pos: "ST", role: "False 9", focus: "Attack" },
+    ],
+    setup: { buildUp: "Counter", defense: "High" },
+    code: "fx4FRjLnpd8&",
+  },
+  {
+    id: "433att",
+    name: "4-3-3 هجوم",
+    tag: "هجوم مرتد",
+    desc: "جناحان يقطعان للداخل ومهاجم وهمي، مع ثلاثي وسط صنّاع لعب وخط دفاع عالي.",
+    lines: [
+      { label: "دفاع", roles: "ظهير (Fullback) + ظهير متقدم (Wingback) + قلبان (Defender - Defend) + حارس (Goalkeeper - Defend)" },
+      { label: "وسط", roles: "ثلاثة صنّاع لعب (Playmaker): أمامي، وهجومي، ودفاعي" },
+      { label: "هجوم", roles: "جناحان (Inside Forward) + مهاجم وهمي (False 9 - Attack)" },
+    ],
+    dots: [[50, 92], [15, 72], [38, 74], [62, 74], [85, 72], [30, 54], [70, 54], [50, 42], [15, 22], [85, 22], [50, 12]],
+    slots: [
+      { pos: "GK", role: "Goalkeeper", focus: "Defend" },
+      { pos: "LB", role: "Fullback", focus: "Balanced" },
+      { pos: "CB", role: "Defender", focus: "Defend" },
+      { pos: "CB", role: "Defender", focus: "Defend" },
+      { pos: "RB", role: "Wingback", focus: "Balanced" },
+      { pos: "CM", role: "Playmaker", focus: "Attack" },
+      { pos: "CM", role: "Playmaker", focus: "Defend" },
+      { pos: "CAM", role: "Playmaker", focus: "Balanced" },
+      { pos: "LW", role: "Inside Forward", focus: "Balanced" },
+      { pos: "RW", role: "Inside Forward", focus: "Balanced" },
+      { pos: "ST", role: "False 9", focus: "Attack" },
+    ],
+    setup: { buildUp: "Counter", defense: "High", lineHeight: 90 },
+    code: "URt&26GceUwp",
   },
   {
     id: "4231",
