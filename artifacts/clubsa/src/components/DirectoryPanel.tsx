@@ -72,6 +72,32 @@ function Modal({ children, onClose }: { children: React.ReactNode; onClose: () =
   );
 }
 
+/* ───────────── عارض الملف (يُستخدم خارج الشات، مثل لوحة الإعلانات) ───────────── */
+
+export function ProfileViewer({
+  userId,
+  auth,
+  onClose,
+  onRequireLogin,
+}: {
+  userId: string;
+  auth: AuthUser | null;
+  onClose: () => void;
+  onRequireLogin: () => void;
+}) {
+  const [view, setView] = useState<View>({ kind: "user", id: userId });
+  const close = () => onClose();
+  return (
+    <>
+      {view?.kind === "user" && (
+        <UserModal key={view.id} id={view.id} auth={auth} onClose={close} onOpen={setView} onRequireLogin={onRequireLogin} />
+      )}
+      {view?.kind === "club" && <ClubModal key={view.id} id={view.id} onClose={close} onOpen={setView} />}
+      {view?.kind === "dm" && auth && <DmModal peer={view.peer} auth={auth} onClose={close} />}
+    </>
+  );
+}
+
 /* ───────────── ملف لاعب ───────────── */
 
 function UserModal({

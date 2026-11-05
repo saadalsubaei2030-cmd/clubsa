@@ -341,6 +341,54 @@ export function fetchLeaderboards(signal?: AbortSignal) {
   return request<Leaderboards>("/leaderboards", { base: "/api", signal });
 }
 
+/* ───────────── لوحة الإعلانات (أبحث عن نادي / مطلوب لاعب) ───────────── */
+
+export type RecruitKind = "need_club" | "need_player";
+
+export type RecruitPost = {
+  id: number;
+  kind: RecruitKind;
+  position: string;
+  region: string;
+  minOverall: number;
+  note: string;
+  createdAt: string;
+  expiresAt: string;
+  poster: {
+    id: string;
+    name: string;
+    username: string | null;
+    position: string | null;
+    overall: number;
+    clubId: string | null;
+    clubName: string | null;
+    avatar: string | null;
+  };
+};
+
+export function fetchRecruitPosts(
+  filters: { kind?: RecruitKind | ""; position?: string; region?: string },
+  signal?: AbortSignal,
+) {
+  const query = new URLSearchParams();
+  if (filters.kind) query.set("kind", filters.kind);
+  if (filters.position) query.set("position", filters.position);
+  if (filters.region) query.set("region", filters.region);
+  const qs = query.toString();
+  return request<{ posts: RecruitPost[] }>(`/recruit${qs ? `?${qs}` : ""}`, { base: "/api", signal });
+}
+
+export function createRecruitPost(
+  userId: string,
+  body: { kind: RecruitKind; position: string; region: string; minOverall: number; note: string },
+) {
+  return request<{ id: number }>("/recruit", { base: "/api", method: "POST", userId, body });
+}
+
+export function deleteRecruitPost(userId: string, id: number) {
+  return request<{ ok: boolean }>(`/recruit/${id}`, { base: "/api", method: "DELETE", userId });
+}
+
 /* ───────────── حسابات الخادم ───────────── */
 
 export type ServerProfile = {
