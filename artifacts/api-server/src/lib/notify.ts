@@ -1,8 +1,9 @@
 import { pool } from "@workspace/db";
+import { ensureModeration } from "./moderation";
 
 /** إشعارات داخل الموقع. الإرسال "أطلق وانسَ": أي فشل هنا لا يجب أن يعطّل العملية الأصلية. */
 
-export type NotifyTarget = "invites" | "profile" | "chat" | "market" | "recruit";
+export type NotifyTarget = "invites" | "profile" | "chat" | "market" | "recruit" | "moderation";
 
 export type NotifyInput = {
   kind: string;
@@ -68,11 +69,13 @@ export function notify(userId: string, input: NotifyInput): void {
 
 /** يجلب اسم شخص (المرسل مثلًا) ثم يبني الإشعار منه. */
 export function notifyWithName(recipientId: string, nameOfUserId: string, build: (name: string) => NotifyInput): void {
-  pool
-    .query<{ name: string }>("SELECT name FROM clubsa_social_users WHERE id = $1", [nameOfUserId])
-    .then((result) => {
-      const name = (result.rows[0]?.name ?? "لاعب").slice(0, 40);
-      return insertNotification(recipientId, build(name));
-    })
-    .catch(() => undefined);
+  (async () => {
+    // من حظرتَه لا تصلك إشعاراته.
+    await ensureModeration();
+    const blocked = await pool.query("SELECT 1 FROM clubsa_blocks WHERE blocker_id = $1 AND blocked_id = $2", [recipientId, nameOfUserId]);
+    if (blocked.rows.length > 0) return;
+    const result = await pool.query<{ name: string }>("SELECT name FROM clubsa_social_users WHERE id = $1", [nameOfUserId]);
+    const name = (result.rows[0]?.name ?? "لاعب").slice(0, 40);
+    await insertNotification(recipientId, build(name));
+  })().catch(() => undefined);
 }

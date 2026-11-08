@@ -316,9 +316,21 @@ export function sendDirectMessage(userId: string, peerId: string, text: string) 
 
 /* ───────────── رسائل الأخطاء بالعربية ───────────── */
 
+/** رسالة خاصة بالكتم والحظر، أو null إذا كان الخطأ شيئًا آخر. */
+export function moderationErrorText(error: unknown): string | null {
+  if (!(error instanceof SocialError) || error.status !== 403) return null;
+  if (error.code === "sanctioned_ban") return "حسابك موقوف عن الكتابة بسبب مخالفة قوانين الموقع.";
+  if (error.code === "sanctioned_mute") return "حسابك مكتوم مؤقتًا بسبب مخالفة قوانين الموقع، تقدر تكتب بعد انتهاء المدة.";
+  if (error.code === "you_blocked") return "أنت حاظر هذا الحساب. ألغِ الحظر أولًا إذا تبي تتواصل معه.";
+  if (error.code === "blocked") return "تعذّر التواصل مع هذا الحساب.";
+  return null;
+}
+
 export function socialErrorText(error: unknown): string {
   if (error instanceof SocialError) {
     if (error.status === 429) return "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.";
+    const moderated = moderationErrorText(error);
+    if (moderated) return moderated;
     if (error.status === 404 && error.code === "not_found") return "لم نجد هذا الحساب. ربما لم يسجّل دخوله بعد.";
     if (error.status === 404) return "هذه الخدمة غير متاحة حاليًا. حاول بعد قليل.";
     if (error.status === 401) return "تعذّر ربط حسابك بالخادم. أعد تحميل الصفحة وحاول مرة أخرى.";
@@ -361,7 +373,7 @@ export function deletePublicChatMessage(userId: string, id: number) {
 
 /* ───────────── الإشعارات ───────────── */
 
-export type NotificationTarget = "invites" | "profile" | "chat" | "market" | "recruit" | "";
+export type NotificationTarget = "invites" | "profile" | "chat" | "market" | "recruit" | "moderation" | "";
 
 export type AppNotification = {
   id: number;
@@ -512,4 +524,64 @@ export function fetchAccountProfile(userId: string) {
     base: "/api",
     userId,
   });
+}
+
+/* ───────────── الإشراف: حظر وإبلاغ وعقوبات ───────────── */
+
+export type ModerationState = {
+  admin: boolean;
+  sanction: { kind: "mute" | "ban"; until: string | null } | null;
+  blockedIds: string[];
+};
+
+export type ReportKind = "chat_message" | "recruit_post" | "user";
+export type ReportReason = "spam" | "abuse" | "scam" | "other";
+export type ResolveAction = "dismiss" | "delete" | "mute1h" | "mute24h" | "mute7d" | "ban";
+
+export type ModerationReport = {
+  id: number;
+  kind: ReportKind;
+  reason: ReportReason;
+  note: string;
+  excerpt: string;
+  createdAt: string;
+  reporter: { id: string; name: string };
+  target: { id: string; name: string };
+  targetOpenReports: number;
+};
+
+export type ActiveSanction = { userId: string; name: string; kind: "mute" | "ban"; until: string | null };
+
+const MOD = { base: "/api" } as const;
+
+export function fetchModerationState(userId: string, signal?: AbortSignal) {
+  return request<ModerationState>("/moderation/me", { ...MOD, userId, signal });
+}
+
+export function blockUser(userId: string, targetId: string) {
+  return request<{ ok: boolean }>(`/moderation/blocks/${encodeURIComponent(targetId)}`, { ...MOD, method: "POST", userId, body: {} });
+}
+
+export function unblockUser(userId: string, targetId: string) {
+  return request<{ ok: boolean }>(`/moderation/blocks/${encodeURIComponent(targetId)}`, { ...MOD, method: "DELETE", userId });
+}
+
+export function reportContent(userId: string, body: { kind: ReportKind; targetRef: string; reason: ReportReason; note?: string }) {
+  return request<{ ok: boolean }>("/moderation/reports", { ...MOD, method: "POST", userId, body });
+}
+
+export function fetchReports(userId: string) {
+  return request<{ reports: ModerationReport[] }>("/moderation/reports", { ...MOD, userId });
+}
+
+export function resolveReport(userId: string, reportId: number, action: ResolveAction) {
+  return request<{ ok: boolean }>(`/moderation/reports/${reportId}/resolve`, { ...MOD, method: "POST", userId, body: { action } });
+}
+
+export function fetchSanctions(userId: string) {
+  return request<{ sanctions: ActiveSanction[] }>("/moderation/sanctions", { ...MOD, userId });
+}
+
+export function liftSanction(userId: string, targetId: string) {
+  return request<{ ok: boolean }>(`/moderation/sanctions/${encodeURIComponent(targetId)}`, { ...MOD, method: "DELETE", userId });
 }

@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, MessageCircle, Lock, User, Trash2 } from "lucide-react";
+import { Send, MessageCircle, Lock, User, Trash2, Flag } from "lucide-react";
 import DirectoryPanel, { ProfileViewer } from "@/components/DirectoryPanel";
-import { SocialError, deletePublicChatMessage, fetchAvatars, fetchChatAdmin, sendPublicChatMessage } from "@/lib/social";
+import ModerationPanel from "@/components/ModerationPanel";
+import ReportModal from "@/components/ReportModal";
+import { useModeration } from "@/hooks/useModeration";
+import { SocialError, deletePublicChatMessage, fetchAvatars, moderationErrorText, sendPublicChatMessage } from "@/lib/social";
 import { maskForbidden } from "@/lib/profanity";
 import type { AuthUser, ChatMessage } from "@/types";
 
@@ -67,7 +70,7 @@ export default function ChatPage({
   const [avatars, setAvatars] = useState<Record<string, string | null>>({});
   const requestedAvatars = useRef<Set<string>>(new Set());
   const [viewUser, setViewUser] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [reporting, setReporting] = useState<{ id: number; sender: string } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const isGuest = !auth;
@@ -101,19 +104,11 @@ export default function ChatPage({
     };
   }, []);
 
-  // هل الحساب مشرف؟ (يظهر زر الحذف على رسائل الجميع)
+  // الحظر والعقوبات وصلاحية المشرف (حالة مشتركة مع بقية الصفحات).
   const authId = auth?.id ?? null;
-  useEffect(() => {
-    setIsAdmin(false);
-    if (!authId) return;
-    let cancelled = false;
-    fetchChatAdmin(authId)
-      .then((data) => !cancelled && setIsAdmin(data.admin))
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [authId]);
+  const moderation = useModeration(authId);
+  const isAdmin = moderation.admin;
+  const visibleMessages = messages.filter((m) => !m.senderId || !moderation.blockedIds.includes(m.senderId));
 
   const removeMessage = async (id: number) => {
     if (!auth) return;
@@ -164,12 +159,14 @@ export default function ChatPage({
       setDraft("");
     } catch (error) {
       setSendError(
-        error instanceof SocialError && error.status === 429
+        moderationErrorText(error) ??
+          (error instanceof SocialError && error.status === 429
           ? "أرسلت رسائل كثيرة، انتظر قليلًا ثم حاول مرة أخرى."
           : error instanceof SocialError && error.status === 400
             ? "تعذّر إرسال الرسالة. تأكد أنها غير فارغة وأقل من 500 حرف."
-            : "تعذّر إرسال الرسالة. تحقق من الاتصال وحاول مرة أخرى.",
+            : "تعذّر إرسال الرسالة. تحقق من الاتصال وحاول مرة أخرى."),
       );
+      moderation.refresh();
     } finally {
       setSending(false);
     }
@@ -204,6 +201,16 @@ export default function ChatPage({
         </div>
       )}
 
+      {moderation.sanction && (
+        <div role="status" className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 mb-4 text-xs text-red-200">
+          {moderation.sanction.kind === "ban"
+            ? "حسابك موقوف عن الكتابة بسبب مخالفة قوانين الموقع."
+            : `حسابك مكتوم حتى ${new Date(moderation.sanction.until ?? Date.now()).toLocaleString("ar-SA")} بسبب مخالفة قوانين الموقع.`}
+        </div>
+      )}
+
+      {auth && isAdmin && <ModerationPanel userId={auth.id} />}
+
       <div className="grid lg:grid-cols-[1fr_300px] gap-6 items-start">
         {/* شات الدردشة العامة */}
         <div className="rounded-2xl border border-slate-800 bg-slate-900/60 flex flex-col h-[480px]">
@@ -214,7 +221,7 @@ export default function ChatPage({
             ref={scrollRef}
             className="flex-1 overflow-y-auto px-4 py-3 space-y-3"
           >
-            {messages.length === 0 ? (
+            {visibleMessages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center">
                 <MessageCircle size={28} className="text-slate-600 mb-3" />
                 <p className="text-sm font-bold text-slate-300">
@@ -226,7 +233,7 @@ export default function ChatPage({
                 </p>
               </div>
             ) : (
-              messages.map((m) => (
+              visibleMessages.map((m) => (
                 <div key={m.id} className="flex items-start gap-2.5 text-sm">
                   <button
                     type="button"
@@ -250,6 +257,15 @@ export default function ChatPage({
                     </div>
                     <p className="text-slate-200 mt-0.5 break-words">{m.text}</p>
                   </div>
+                  {auth && m.senderId && m.senderId !== auth.id && (
+                    <button
+                      onClick={() => setReporting({ id: m.id, sender: m.sender })}
+                      aria-label="إبلاغ عن الرسالة"
+                      className="ms-auto shrink-0 text-slate-600 hover:text-amber-300"
+                    >
+                      <Flag size={13} />
+                    </button>
+                  )}
                   {auth && (isAdmin || m.senderId === auth.id) &&
                     (confirmDelete === m.id ? (
                       <span className="ms-auto flex shrink-0 items-center gap-1.5 text-[11px]">
@@ -264,7 +280,7 @@ export default function ChatPage({
                       <button
                         onClick={() => setConfirmDelete(m.id)}
                         aria-label="حذف الرسالة"
-                        className="ms-auto shrink-0 text-slate-600 hover:text-red-300"
+                        className={`${m.senderId && m.senderId !== auth.id ? "" : "ms-auto "}shrink-0 text-slate-600 hover:text-red-300`}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -305,6 +321,10 @@ export default function ChatPage({
 
         <DirectoryPanel auth={auth} onRequireLogin={onRequireLogin} />
       </div>
+
+      {auth && reporting && (
+        <ReportModal userId={auth.id} target={{ kind: "chat_message", targetRef: String(reporting.id), label: `رسالة ${reporting.sender}` }} onClose={() => setReporting(null)} />
+      )}
 
       {viewUser && <ProfileViewer userId={viewUser} auth={auth} onClose={() => setViewUser(null)} onRequireLogin={onRequireLogin} />}
 

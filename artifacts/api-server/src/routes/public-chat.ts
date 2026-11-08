@@ -2,6 +2,8 @@ import { Router, type IRouter, type Request } from "express";
 import { desc, gt, asc } from "drizzle-orm";
 import { db, pool, publicChatTable } from "@workspace/db";
 import { createRateLimiter, parseChatBody } from "../lib/public-chat-rules";
+import { isAdmin } from "../lib/admin";
+import { activeSanction } from "../lib/moderation";
 import { authenticate, ensureTables as ensureSocialTables } from "./social";
 
 const router: IRouter = Router();
@@ -10,20 +12,6 @@ const router: IRouter = Router();
 const perClient = createRateLimiter({ windowMs: 30_000, max: 10 });
 const siteWide = createRateLimiter({ windowMs: 60_000, max: 200 });
 const deleteLimit = createRateLimiter({ windowMs: 60_000, max: 30 });
-
-// مشرفو الموقع: إيميلات حساباتهم في متغير البيئة ADMIN_EMAILS (مفصولة بفاصلة) على Render.
-const ADMIN_EMAILS = new Set(
-  (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean),
-);
-
-async function isAdmin(userId: string): Promise<boolean> {
-  if (ADMIN_EMAILS.size === 0) return false;
-  const { rows } = await pool.query<{ email: string }>("SELECT email FROM clubsa_accounts WHERE user_id = $1", [userId]);
-  return rows.some((row) => ADMIN_EMAILS.has(row.email.toLowerCase()));
-}
 
 let tableReady: Promise<void> | null = null;
 
@@ -96,6 +84,11 @@ router.post("/chat/public", async (req, res): Promise<void> => {
     senderId = await authenticate(req);
     if (!senderId) {
       res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    const sanction = await activeSanction(senderId);
+    if (sanction) {
+      res.status(403).json({ error: sanction.kind === "ban" ? "sanctioned_ban" : "sanctioned_mute" });
       return;
     }
     const { rows } = await pool.query<{ name: string }>("SELECT name FROM clubsa_social_users WHERE id = $1", [senderId]);

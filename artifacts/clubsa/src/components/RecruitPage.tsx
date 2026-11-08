@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Megaphone, Plus, Trash2, User, X } from "lucide-react";
+import { Flag, Megaphone, Plus, Trash2, User, X } from "lucide-react";
 import { POSITIONS, POSITION_LABELS, REGIONS } from "@/data";
 import { canManageClub } from "@/lib/permissions";
 import {
@@ -12,6 +12,8 @@ import {
   type RecruitPost,
 } from "@/lib/social";
 import { ProfileViewer } from "@/components/DirectoryPanel";
+import ReportModal from "@/components/ReportModal";
+import { useModeration } from "@/hooks/useModeration";
 import type { AuthUser } from "@/types";
 
 const display = { fontFamily: "Cairo, sans-serif" } as const;
@@ -208,6 +210,8 @@ export default function RecruitPage({
   const [creating, setCreating] = useState(false);
   const [viewUser, setViewUser] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
+  const [reportingId, setReportingId] = useState<number | null>(null);
+  const moderation = useModeration(auth?.id ?? null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -307,7 +311,7 @@ export default function RecruitPage({
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {posts.map((p) => (
+          {posts.filter((p) => !moderation.blockedIds.includes(p.poster.id)).map((p) => (
             <article key={p.id} className="space-y-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
               <div className="flex items-center justify-between gap-2">
                 <span className={`rounded-md border px-2 py-0.5 text-[11px] font-bold ${KIND_STYLE[p.kind]}`}>{KIND_LABEL[p.kind]}</span>
@@ -349,6 +353,15 @@ export default function RecruitPage({
                 >
                   عرض الملف والتواصل
                 </button>
+                {auth && auth.id !== p.poster.id && (
+                  <button
+                    onClick={() => setReportingId(p.id)}
+                    aria-label="إبلاغ عن الإعلان"
+                    className="rounded-lg bg-slate-800 px-3 text-amber-300 hover:bg-slate-700"
+                  >
+                    <Flag size={14} />
+                  </button>
+                )}
                 {auth?.id === p.poster.id && (
                   <button
                     onClick={() => void remove(p.id)}
@@ -365,6 +378,9 @@ export default function RecruitPage({
       )}
 
       {creating && auth && <NewPostModal auth={auth} onClose={() => setCreating(false)} onCreated={refresh} />}
+      {auth && reportingId !== null && (
+        <ReportModal userId={auth.id} target={{ kind: "recruit_post", targetRef: String(reportingId), label: "الإعلان" }} onClose={() => setReportingId(null)} />
+      )}
       {viewUser && <ProfileViewer userId={viewUser} auth={auth} onClose={() => setViewUser(null)} onRequireLogin={onRequireLogin} />}
     </div>
   );
