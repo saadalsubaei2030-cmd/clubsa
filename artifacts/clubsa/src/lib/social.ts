@@ -351,6 +351,14 @@ export function sendPublicChatMessage(userId: string, text: string) {
   return request<{ message: PublicChatMessage }>("/chat/public", { base: "/api", method: "POST", userId, body: { text } });
 }
 
+export function fetchChatAdmin(userId: string) {
+  return request<{ admin: boolean }>("/chat/me", { base: "/api", userId });
+}
+
+export function deletePublicChatMessage(userId: string, id: number) {
+  return request<{ ok: boolean }>(`/chat/public/${id}`, { base: "/api", method: "DELETE", userId });
+}
+
 /* ───────────── لوحة الإعلانات (أبحث عن نادي / مطلوب لاعب) ───────────── */
 
 export type RecruitKind = "need_club" | "need_player";
