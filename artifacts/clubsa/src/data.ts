@@ -182,4 +182,4 @@ export function capForLevel(posId: string, level: number): Record<string, number
   return caps;
 }
 
-export const FORBIDDEN_WORDS = ["غبي", "احمق", "تافه", "نصاب", "حقير", "خرا"];
+export { FORBIDDEN_WORDS } from "@/lib/profanity";

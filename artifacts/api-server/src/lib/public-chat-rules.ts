@@ -4,18 +4,10 @@ export const MAX_TEXT = 500;
 export const MAX_NAME = 40;
 export const MAX_SENDER_ID = 64;
 
-// نفس قائمة الواجهة (artifacts/clubsa/src/data.ts)، ويُعاد تطبيقها هنا لأن الخادم لا يثق بالمتصفح.
-export const FORBIDDEN_WORDS = ["غبي", "احمق", "تافه", "نصاب", "حقير", "خرا"];
+export { FORBIDDEN_WORDS, maskForbidden } from "./profanity";
+import { maskForbidden } from "./profanity";
 
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
-
-export function maskForbidden(text: string): string {
-  let result = text;
-  for (const word of FORBIDDEN_WORDS) {
-    result = result.split(word).join("*".repeat(word.length));
-  }
-  return result;
-}
 
 function clean(value: unknown, max: number): string | null {
   if (typeof value !== "string") return null;
