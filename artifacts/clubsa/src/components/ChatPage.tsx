@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, MessageCircle, Lock, User } from "lucide-react";
+import { Send, MessageCircle, Lock, User, Trash2 } from "lucide-react";
 import DirectoryPanel, { ProfileViewer } from "@/components/DirectoryPanel";
-import { SocialError, fetchAvatars, sendPublicChatMessage } from "@/lib/social";
+import { SocialError, deletePublicChatMessage, fetchAvatars, fetchChatAdmin, sendPublicChatMessage } from "@/lib/social";
 import { maskForbidden } from "@/lib/profanity";
 import type { AuthUser, ChatMessage } from "@/types";
 
@@ -67,6 +67,8 @@ export default function ChatPage({
   const [avatars, setAvatars] = useState<Record<string, string | null>>({});
   const requestedAvatars = useRef<Set<string>>(new Set());
   const [viewUser, setViewUser] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const isGuest = !auth;
 
@@ -98,6 +100,31 @@ export default function ChatPage({
       clearInterval(interval);
     };
   }, []);
+
+  // هل الحساب مشرف؟ (يظهر زر الحذف على رسائل الجميع)
+  const authId = auth?.id ?? null;
+  useEffect(() => {
+    setIsAdmin(false);
+    if (!authId) return;
+    let cancelled = false;
+    fetchChatAdmin(authId)
+      .then((data) => !cancelled && setIsAdmin(data.admin))
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [authId]);
+
+  const removeMessage = async (id: number) => {
+    if (!auth) return;
+    setConfirmDelete(null);
+    try {
+      await deletePublicChatMessage(auth.id, id);
+      setMessages((prev) => prev.filter((m) => m.id !== id));
+    } catch {
+      setSendError("تعذّر حذف الرسالة. حاول مرة أخرى.");
+    }
+  };
 
   // نجلب صور المرسلين مرة واحدة لكل مستخدم ونحفظها (بدل إرسالها مع كل رسالة).
   useEffect(() => {
@@ -223,6 +250,25 @@ export default function ChatPage({
                     </div>
                     <p className="text-slate-200 mt-0.5 break-words">{m.text}</p>
                   </div>
+                  {auth && (isAdmin || m.senderId === auth.id) &&
+                    (confirmDelete === m.id ? (
+                      <span className="ms-auto flex shrink-0 items-center gap-1.5 text-[11px]">
+                        <button onClick={() => void removeMessage(m.id)} className="font-bold text-red-300 hover:text-red-200">
+                          تأكيد الحذف
+                        </button>
+                        <button onClick={() => setConfirmDelete(null)} className="text-slate-500 hover:text-slate-300">
+                          إلغاء
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDelete(m.id)}
+                        aria-label="حذف الرسالة"
+                        className="ms-auto shrink-0 text-slate-600 hover:text-red-300"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    ))}
                 </div>
               ))
             )}

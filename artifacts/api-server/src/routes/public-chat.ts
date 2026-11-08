@@ -9,6 +9,21 @@ const router: IRouter = Router();
 // حماية أساسية من الإزعاج: 10 رسائل كل 30 ثانية لكل عنوان IP، و200 رسالة في الدقيقة للموقع كله.
 const perClient = createRateLimiter({ windowMs: 30_000, max: 10 });
 const siteWide = createRateLimiter({ windowMs: 60_000, max: 200 });
+const deleteLimit = createRateLimiter({ windowMs: 60_000, max: 30 });
+
+// مشرفو الموقع: إيميلات حساباتهم في متغير البيئة ADMIN_EMAILS (مفصولة بفاصلة) على Render.
+const ADMIN_EMAILS = new Set(
+  (process.env.ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean),
+);
+
+async function isAdmin(userId: string): Promise<boolean> {
+  if (ADMIN_EMAILS.size === 0) return false;
+  const { rows } = await pool.query<{ email: string }>("SELECT email FROM clubsa_accounts WHERE user_id = $1", [userId]);
+  return rows.some((row) => ADMIN_EMAILS.has(row.email.toLowerCase()));
+}
 
 let tableReady: Promise<void> | null = null;
 
@@ -110,6 +125,59 @@ router.post("/chat/public", async (req, res): Promise<void> => {
     res.status(201).json({ message: toMessage(row) });
   } catch (error) {
     req.log?.error({ err: error }, "public chat: failed to save message");
+    res.status(500).json({ error: "chat_unavailable" });
+  }
+});
+
+/** هل المستخدم الحالي مشرف؟ تستخدمه الواجهة لإظهار زر الحذف على رسائل الجميع. */
+router.get("/chat/me", async (req, res): Promise<void> => {
+  try {
+    await ensureSocialTables();
+    const me = await authenticate(req);
+    if (!me) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ admin: await isAdmin(me) });
+  } catch (error) {
+    req.log?.error({ err: error }, "public chat: failed to check admin");
+    res.status(500).json({ error: "chat_unavailable" });
+  }
+});
+
+// يحذف الرسالة صاحبها أو المشرف فقط.
+router.delete("/chat/public/:id", async (req, res): Promise<void> => {
+  try {
+    await ensureTable();
+    await ensureSocialTables();
+    const me = await authenticate(req);
+    if (!me) {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    if (!deleteLimit.allow(me)) {
+      res.status(429).json({ error: "rate_limited" });
+      return;
+    }
+    const id = Number(String(req.params.id));
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: "invalid_id" });
+      return;
+    }
+    const { rows } = await pool.query<{ sender_id: string }>("SELECT sender_id FROM clubsa_public_chat WHERE id = $1", [id]);
+    if (rows.length === 0) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (rows[0].sender_id !== me && !(await isAdmin(me))) {
+      res.status(403).json({ error: "forbidden" });
+      return;
+    }
+    await pool.query("DELETE FROM clubsa_public_chat WHERE id = $1", [id]);
+    res.json({ ok: true });
+  } catch (error) {
+    req.log?.error({ err: error }, "public chat: failed to delete message");
     res.status(500).json({ error: "chat_unavailable" });
   }
 });
