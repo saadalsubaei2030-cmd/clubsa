@@ -3,6 +3,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { pool } from "@workspace/db";
 import { createRateLimiter } from "../lib/public-chat-rules";
 import { notifyWithName } from "../lib/notify";
+import { activeSanction, blockState } from "../lib/moderation";
 import {
   escapeLike,
   isValidId,
@@ -476,6 +477,11 @@ router.post(
     if (target === me) return fail(res, 400, "cannot_target_self");
     if (!friendLimit.allow(me)) return fail(res, 429, "rate_limited");
     if (!(await userExists(target))) return fail(res, 404, "not_found");
+    const sanction = await activeSanction(me);
+    if (sanction) return fail(res, 403, sanction.kind === "ban" ? "sanctioned_ban" : "sanctioned_mute");
+    const blocks = await blockState(me, target);
+    if (blocks.iBlocked) return fail(res, 403, "you_blocked");
+    if (blocks.blockedMe) return fail(res, 403, "blocked");
 
     const link = await findLink(me, target);
     if (!link) {
@@ -615,6 +621,11 @@ router.post(
     if (!parsed.ok) return fail(res, 400, parsed.error);
     if (!dmLimit.allow(me)) return fail(res, 429, "rate_limited");
     if (!(await userExists(peer))) return fail(res, 404, "not_found");
+    const sanction = await activeSanction(me);
+    if (sanction) return fail(res, 403, sanction.kind === "ban" ? "sanctioned_ban" : "sanctioned_mute");
+    const blocks = await blockState(me, peer);
+    if (blocks.iBlocked) return fail(res, 403, "you_blocked");
+    if (blocks.blockedMe) return fail(res, 403, "blocked");
 
     const { rows } = await pool.query<{ id: number; created_at: Date }>(
       `INSERT INTO clubsa_social_messages (sender_id, receiver_id, text) VALUES ($1, $2, $3)

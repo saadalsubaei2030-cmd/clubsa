@@ -1,6 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { pool } from "@workspace/db";
 import { createRateLimiter, maskForbidden } from "../lib/public-chat-rules";
+import { activeSanction } from "../lib/moderation";
 import { ensureTables as ensureSocialTables, authenticate } from "./social";
 
 const router: IRouter = Router();
@@ -189,6 +190,8 @@ router.post("/recruit", async (req: Request, res: Response): Promise<void> => {
     const me = await authenticate(req);
     if (!me) return fail(res, 401, "unauthorized");
     if (!postLimit.allow(me)) return fail(res, 429, "rate_limited");
+    const sanction = await activeSanction(me);
+    if (sanction) return fail(res, 403, sanction.kind === "ban" ? "sanctioned_ban" : "sanctioned_mute");
 
     const parsed = parsePostBody(req.body);
     if (!parsed.ok) return fail(res, 400, parsed.error);

@@ -180,9 +180,9 @@ export default function App() {
         onNotificationNavigate={(target) => {
           if (target === "invites") setInvitesOpen(true);
           else if (target === "profile") setProfileOpen(true);
-          else if (target === "chat" || target === "market" || target === "recruit") {
+          else if (target === "chat" || target === "market" || target === "recruit" || target === "moderation") {
             setProfileOpen(false);
-            setTab(target);
+            setTab(target === "moderation" ? "chat" : target);
           }
         }}
       />

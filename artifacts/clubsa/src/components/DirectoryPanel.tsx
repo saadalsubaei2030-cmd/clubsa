@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Search, User, Shield, Send, X, UserPlus, Check, MessageCircle, Users, UserMinus } from "lucide-react";
+import { Search, User, Shield, Send, X, UserPlus, Check, MessageCircle, Users, UserMinus, Ban, Flag } from "lucide-react";
+import ReportModal from "@/components/ReportModal";
+import { useModeration } from "@/hooks/useModeration";
 import { ROLE_LABELS } from "@/data";
 import {
   acceptFriendRequest,
@@ -117,6 +119,27 @@ function UserModal({
   const [rel, setRel] = useState<Relationship>("none");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const moderation = useModeration(auth?.id ?? null);
+  const iBlocked = moderation.blockedIds.includes(id);
+
+  const toggleBlock = async () => {
+    if (!auth) return onRequireLogin();
+    if (!iBlocked && !window.confirm("تحظر هذا الحساب؟ ما راح تشوف رسائله وإعلاناته ولا يقدر يراسلك، وتنحذف الصداقة بينكم.")) return;
+    setBusy(true);
+    setError("");
+    try {
+      if (iBlocked) await moderation.unblock(id);
+      else {
+        await moderation.block(id);
+        setRel("none");
+      }
+    } catch (e) {
+      setError(socialErrorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -205,6 +228,19 @@ function UserModal({
                 <MessageCircle size={13} /> رسالة خاصة
               </button>
             </div>
+          )}
+          {rel !== "self" && auth && (
+            <div className="mt-2 flex gap-2">
+              <button disabled={busy} onClick={() => void toggleBlock()} className={`${btn} bg-slate-800 text-slate-400 hover:text-red-300`}>
+                <Ban size={13} /> {iBlocked ? "إلغاء الحظر" : "حظر"}
+              </button>
+              <button onClick={() => setReporting(true)} className={`${btn} bg-slate-800 text-slate-400 hover:text-amber-300`}>
+                <Flag size={13} /> إبلاغ
+              </button>
+            </div>
+          )}
+          {auth && reporting && (
+            <ReportModal userId={auth.id} target={{ kind: "user", targetRef: id, label: user.name }} onClose={() => setReporting(false)} />
           )}
         </>
       )}
