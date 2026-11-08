@@ -5,6 +5,7 @@ import { formatBalance } from "@/lib/formatters";
 import { getProfilePath } from "@/lib/mockData";
 import type { AuthUser, ClubInvite, PlayerBuild } from "@/types";
 import PendingClubInvites from "@/components/PendingClubInvites";
+import AccountSecurityCard from "@/components/AccountSecurityCard";
 import ClubRosterSection from "@/components/ClubRosterSection";
 import { canManageClub } from "@/lib/permissions";
 
@@ -465,6 +466,10 @@ export default function PlayerProfilePage({
             </div>
           )}
         </section>
+      </div>
+
+      <div className="mt-6">
+        <AccountSecurityCard userId={auth.id} />
       </div>
     </div>
   );
