@@ -441,10 +441,35 @@ export type ServerClub = {
 };
 
 export function registerAccount(email: string, password: string, userId: string) {
-  return request<{ ok: true }>("/auth/register", {
+  return request<{ ok: true; recoveryCode: string }>("/auth/register", {
     base: "/api",
     method: "POST",
     body: { email, password, userId, key: getSocialKey() },
+  });
+}
+
+export function forgotPassword(email: string) {
+  return request<{ ok: true }>("/auth/forgot", { base: "/api", method: "POST", body: { email } });
+}
+
+export function resetPasswordWithToken(token: string, newPassword: string) {
+  return request<{ ok: true }>("/auth/reset-token", { base: "/api", method: "POST", body: { token, newPassword } });
+}
+
+export function resetPasswordWithCode(email: string, recoveryCode: string, newPassword: string) {
+  return request<{ ok: true; recoveryCode: string }>("/auth/reset", {
+    base: "/api",
+    method: "POST",
+    body: { email, recoveryCode, newPassword },
+  });
+}
+
+export function requestNewRecoveryCode(userId: string, password: string) {
+  return request<{ ok: true; recoveryCode: string }>("/auth/recovery-code", {
+    base: "/api",
+    method: "POST",
+    userId,
+    body: { password },
   });
 }
 

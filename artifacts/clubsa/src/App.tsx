@@ -63,8 +63,13 @@ export default function App() {
     if (next) setUser(next);
   });
   const [tab, setTab] = useState<TabId>("calculator");
-  const [welcomeOpen, setWelcomeOpen] = useState(true);
-  const [loginOpen, setLoginOpen] = useState(false);
+  // رابط الاسترجاع القادم من الإيميل: ‎/?reset=<token>‎ يفتح نافذة تعيين كلمة المرور مباشرة.
+  const [resetToken, setResetToken] = useState<string | null>(() => {
+    const token = new URLSearchParams(window.location.search).get("reset");
+    return token && /^[0-9a-f]{64}$/.test(token) ? token : null;
+  });
+  const [welcomeOpen, setWelcomeOpen] = useState(resetToken === null);
+  const [loginOpen, setLoginOpen] = useState(resetToken !== null);
   const [loginMode, setLoginMode] = useState<"login" | "register">("login");
   const [legalPage, setLegalPage] = useState<LegalPage | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -75,6 +80,14 @@ export default function App() {
   const [invitesOpen, setInvitesOpen] = useState(false);
   const [invitePlayerOpen, setInvitePlayerOpen] = useState(false);
   const { incoming, sent, refresh: refreshInvites } = useClubInvites(auth);
+
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).has("reset")) return;
+    // نخفي الرمز من شريط العنوان حتى لا يبقى في السجل أو يُنسخ بالخطأ.
+    const url = new URL(window.location.href);
+    url.searchParams.delete("reset");
+    window.history.replaceState({}, "", url.pathname + (url.search || "") + url.hash);
+  }, []);
 
   useEffect(() => {
     const handlePopState = () => {
@@ -252,7 +265,8 @@ export default function App() {
       )}
       {loginOpen && (
         <LoginModal
-          onClose={() => setLoginOpen(false)}
+          onClose={() => { setLoginOpen(false); setResetToken(null); }}
+          resetToken={resetToken}
           onSignUp={signUp}
           onSignIn={signIn}
           onCompleteProfile={completeProfile}

@@ -3,8 +3,9 @@ import { X, ChevronLeft, AlertCircle, Shield, User, Loader2 } from "lucide-react
 import { REGIONS } from "@/data";
 import type { AuthUser, UserRole } from "@/types";
 import { validateLoginEmail, validateRegistrationEmail } from "@/lib/emailValidation";
+import PasswordRecovery, { RecoveryCodeScreen } from "@/components/PasswordRecovery";
 
-type SignUpFn = (email: string, password: string) => Promise<{ error: any | null; data: any | null }>;
+type SignUpFn = (email: string, password: string) => Promise<{ error: any | null; data: any | null }>; // data.recoveryCode: كود الاسترجاع (يُعرض مرة واحدة)
 type SignInFn = (email: string, password: string) => Promise<{ error: any | null; data: any | null }>;
 type CompleteProfileFn = (
   uid: string,
@@ -24,12 +25,14 @@ export default function LoginModal({
   onSignIn,
   onCompleteProfile,
   initialMode = "login",
+  resetToken = null,
 }: {
   onClose: () => void;
   onSignUp: SignUpFn;
   onSignIn: SignInFn;
   onCompleteProfile: CompleteProfileFn;
   initialMode?: "login" | "register";
+  resetToken?: string | null;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,6 +51,8 @@ export default function LoginModal({
   const [pendingEmail, setPendingEmail] = useState<string>("");
   const [step, setStep] = useState<1 | 2>(1);
   const [mode, setMode] = useState<"login" | "register">(initialMode);
+  const [recovery, setRecovery] = useState(Boolean(resetToken));
+  const [registerCode, setRegisterCode] = useState<string | null>(null);
   const referralCode = new URLSearchParams(window.location.search).get("ref");
 
   const validateEmail = (value: string): string =>
@@ -84,6 +89,8 @@ export default function LoginModal({
       if (data?.user) {
         setPendingUid(data.user.id);
         setPendingEmail(email.trim());
+        // كود الاسترجاع يظهر أولًا ولا يمكن تجاوزه قبل تأكيد حفظه.
+        if (data.recoveryCode) setRegisterCode(data.recoveryCode);
         setStep(2);
         setSubmitting(false);
       }
@@ -132,7 +139,23 @@ export default function LoginModal({
           <X size={18} />
         </button>
 
-        {step === 1 && (
+        {recovery && (
+          <PasswordRecovery
+            initialToken={resetToken}
+            initialEmail={email}
+            onBackToLogin={(backEmail) => {
+              setRecovery(false);
+              setMode("login");
+              setPassword("");
+              setAuthError("");
+              if (backEmail) setEmail(backEmail);
+            }}
+          />
+        )}
+
+        {!recovery && registerCode && <RecoveryCodeScreen code={registerCode} onDone={() => setRegisterCode(null)} />}
+
+        {!recovery && !registerCode && step === 1 && (
           <>
             <h2 className="text-lg font-extrabold text-white mb-1" style={{ fontFamily: "Cairo, sans-serif" }}>
               {mode === "register" ? "إنشاء حساب جديد" : "تسجيل الدخول"}
@@ -175,6 +198,15 @@ export default function LoginModal({
                   className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
                 />
               </label>
+              {mode === "login" && (
+                <button
+                  type="button"
+                  onClick={() => { setRecovery(true); setAuthError(""); }}
+                  className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+                >
+                  نسيت كلمة المرور؟
+                </button>
+              )}
             </div>
 
             {authError && (
@@ -209,7 +241,7 @@ export default function LoginModal({
           </>
         )}
 
-        {step === 2 && (
+        {!recovery && !registerCode && step === 2 && (
           <>
             <button onClick={() => setStep(1)} className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 transition-colors mb-3">
               <ChevronLeft size={14} />
@@ -341,10 +373,12 @@ export default function LoginModal({
           </>
         )}
 
+        {!recovery && !registerCode && (
         <div className="flex items-center justify-center gap-1.5 mt-5">
           <div className={`h-1.5 rounded-full transition-colors ${step === 1 ? "w-6 bg-cyan-400" : "w-6 bg-slate-700"}`} />
           <div className={`h-1.5 rounded-full transition-colors ${step === 2 ? "w-6 bg-cyan-400" : "w-6 bg-slate-700"}`} />
         </div>
+        )}
       </div>
     </div>
   );

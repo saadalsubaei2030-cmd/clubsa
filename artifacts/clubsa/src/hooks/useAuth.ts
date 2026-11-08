@@ -76,14 +76,15 @@ export function useAuth() {
     const newId = newUserId();
     const result = mockSignUp(email, password, { uid: newId });
     if ("error" in result) return { error: { message: result.error }, data: null };
+    let recoveryCode: string | undefined;
     try {
-      await registerAccount(email.trim(), password, result.uid);
+      recoveryCode = (await registerAccount(email.trim(), password, result.uid)).recoveryCode;
     } catch (error) {
       saveUsers(getUsers().filter((u) => u.id !== result.uid));
       mockSignOut();
       return { error: { message: authErrorText(error) }, data: null };
     }
-    return { error: null, data: { user: { id: result.uid } } };
+    return { error: null, data: { user: { id: result.uid }, recoveryCode } };
   };
 
   const signIn = async (email: string, password: string) => {
