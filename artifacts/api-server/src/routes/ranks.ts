@@ -2,12 +2,14 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { pool } from "@workspace/db";
 import { createRateLimiter } from "../lib/public-chat-rules";
 import { PLAYER_START_BALANCE, parsePrice } from "../lib/market-rules";
+import { notify } from "../lib/notify";
 import { authenticate, ensureTables } from "./social";
 
 const router: IRouter = Router();
 const writeLimit = createRateLimiter({ windowMs: 60_000, max: 40 });
 
 const RANKS = ["member", "vice", "scout"] as const;
+const RANK_LABELS: Record<string, string> = { member: "لاعب عادي", vice: "نائب النادي", scout: "كشاف" };
 
 function fail(res: Response, status: number, error: string): void {
   res.status(status).json({ error });
@@ -42,6 +44,7 @@ router.post("/club-ranks/:userId", async (req: Request, res: Response): Promise<
       [rank, target, clubId],
     );
     if (!updated.rowCount) return fail(res, 404, "not_found");
+    notify(target, { kind: "rank", title: "تغيّرت رتبتك في النادي", body: `رتبتك الآن: ${RANK_LABELS[rank] ?? rank}`, target: "profile" });
     res.json({ ok: true, rank });
   } catch (error) {
     req.log?.error({ err: error }, "club rank route failed");
@@ -65,6 +68,7 @@ router.post("/club-members/:userId/kick", async (req: Request, res: Response): P
     const target = req.params.userId;
     if (typeof target !== "string" || !target || target.length > 100 || target === me) return fail(res, 400, "invalid_target");
 
+    let kickedFrom = "النادي";
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -102,6 +106,8 @@ router.post("/club-members/:userId/kick", async (req: Request, res: Response): P
         return fail(res, 403, "forbidden_target");
       }
 
+      const clubRow = await client.query<{ name: string }>("SELECT name FROM clubsa_social_clubs WHERE id = $1", [a.club_id]);
+      kickedFrom = clubRow.rows[0]?.name ?? kickedFrom;
       await client.query(
         "UPDATE clubsa_social_users SET club_id = NULL, club_name = NULL, is_free_agent = true, club_rank = 'member', updated_at = now() WHERE id = $1",
         [target],
@@ -125,6 +131,7 @@ router.post("/club-members/:userId/kick", async (req: Request, res: Response): P
     await pool
       .query("UPDATE clubsa_market_listings SET status = 'cancelled' WHERE player_id = $1 AND status = 'open'", [target])
       .catch(() => undefined);
+    notify(target, { kind: "kicked", title: `تم إخراجك من نادي ${kickedFrom}`, body: "صرت لاعبًا حرًا، وتقدر تنضم لنادٍ آخر.", target: "recruit" });
     res.json({ ok: true });
   } catch (error) {
     req.log?.error({ err: error }, "club kick route failed");
@@ -169,6 +176,12 @@ router.post("/club-members/:userId/list", async (req: Request, res: Response): P
         "INSERT INTO clubsa_market_listings (player_id, price) VALUES ($1, $2) RETURNING id",
         [target, price],
       );
+      notify(target, {
+        kind: "listed",
+        title: "رئيس ناديك عرضك للبيع في السوق",
+        body: `السعر المعروض: ${price.toLocaleString("en-US")}`,
+        target: "market",
+      });
       res.status(201).json({ ok: true, id: inserted.rows[0].id });
     } catch (error) {
       if ((error as { code?: string }).code === "23505") return fail(res, 409, "already_listed");

@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { pool } from "@workspace/db";
 import { createRateLimiter } from "../lib/public-chat-rules";
 import { PLAYER_START_BALANCE } from "../lib/market-rules";
+import { notify, notifyWithName } from "../lib/notify";
 import { authenticate, ensureTables } from "./social";
 
 const router: IRouter = Router();
@@ -147,7 +148,7 @@ router.post(
 
     // الصلاحية من بيانات يتحكم بها الخادم فقط (رئيس النادي المسجّل أو رتبة نائب/كشاف)،
     // لأن role و club_id في ملف المستخدم يرسلها المتصفح ولا يُوثق بها.
-    const club = await pool.query<{ president_id: string }>("SELECT president_id FROM clubsa_social_clubs WHERE id = $1", [from.club_id]);
+    const club = await pool.query<{ president_id: string; name: string }>("SELECT president_id, name FROM clubsa_social_clubs WHERE id = $1", [from.club_id]);
     if (!club.rowCount) return fail(res, 409, "club_not_synced");
     const isOwner = club.rows[0].president_id === id;
     if (!isOwner && !["vice", "scout"].includes(from.club_rank)) return fail(res, 403, "managers_only");
@@ -168,6 +169,15 @@ router.post(
        RETURNING id`,
       [from.club_id, id, toUserId],
     );
+    if (inserted.rowCount) {
+      notify(toUserId, {
+        kind: "club_invite",
+        title: `دعوة للانضمام إلى نادي ${club.rows[0].name}`,
+        body: "افتح الدعوات لقبولها أو رفضها.",
+        target: "invites",
+        dedupeKey: `invite:${from.club_id}`,
+      });
+    }
     res.status(inserted.rowCount ? 201 : 200).json({ ok: true, duplicate: !inserted.rowCount });
   }),
 );
@@ -185,11 +195,12 @@ router.post(
     if (!Number.isInteger(inviteId) || inviteId <= 0) return fail(res, 400, "invalid_invite");
     if (status !== "accepted" && status !== "declined") return fail(res, 400, "invalid_status");
 
+    let inviteFrom: string | null = null;
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-      const found = await client.query<{ club_id: string }>(
-        "SELECT club_id FROM clubsa_club_invites WHERE id = $1 AND to_user_id = $2 AND status = 'pending' FOR UPDATE",
+      const found = await client.query<{ club_id: string; from_user_id: string }>(
+        "SELECT club_id, from_user_id FROM clubsa_club_invites WHERE id = $1 AND to_user_id = $2 AND status = 'pending' FOR UPDATE",
         [inviteId, userId],
       );
       const invite = found.rows[0];
@@ -197,6 +208,7 @@ router.post(
         await client.query("ROLLBACK");
         return fail(res, 404, "not_found");
       }
+      inviteFrom = invite.from_user_id;
 
       if (status === "accepted") {
         const club = await client.query<{ name: string }>("SELECT name FROM clubsa_social_clubs WHERE id = $1", [invite.club_id]);
@@ -233,6 +245,13 @@ router.post(
       throw error;
     } finally {
       client.release();
+    }
+    if (inviteFrom) {
+      notifyWithName(inviteFrom, userId, (name) => ({
+        kind: "invite_response",
+        title: status === "accepted" ? `${name} قبل دعوتك وانضم لناديك` : `${name} رفض دعوتك`,
+        target: "profile",
+      }));
     }
     res.json({ ok: true });
   }),

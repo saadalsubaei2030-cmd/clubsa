@@ -359,6 +359,32 @@ export function deletePublicChatMessage(userId: string, id: number) {
   return request<{ ok: boolean }>(`/chat/public/${id}`, { base: "/api", method: "DELETE", userId });
 }
 
+/* ───────────── الإشعارات ───────────── */
+
+export type NotificationTarget = "invites" | "profile" | "chat" | "market" | "recruit" | "";
+
+export type AppNotification = {
+  id: number;
+  kind: string;
+  title: string;
+  body: string;
+  target: NotificationTarget;
+  createdAt: string;
+  read: boolean;
+};
+
+export function fetchNotifications(userId: string, signal?: AbortSignal) {
+  return request<{ unread: number; items: AppNotification[] }>("/notifications", { base: "/api", userId, signal });
+}
+
+export function markNotificationsRead(userId: string, ids?: number[]) {
+  return request<{ ok: boolean }>("/notifications/read", { base: "/api", method: "POST", userId, body: ids ? { ids } : {} });
+}
+
+export function clearNotifications(userId: string) {
+  return request<{ ok: boolean }>("/notifications/clear", { base: "/api", method: "POST", userId, body: {} });
+}
+
 /* ───────────── لوحة الإعلانات (أبحث عن نادي / مطلوب لاعب) ───────────── */
 
 export type RecruitKind = "need_club" | "need_player";

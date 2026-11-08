@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { createHash, timingSafeEqual } from "node:crypto";
 import { pool } from "@workspace/db";
 import { createRateLimiter } from "../lib/public-chat-rules";
+import { notifyWithName } from "../lib/notify";
 import {
   escapeLike,
   isValidId,
@@ -483,12 +484,20 @@ router.post(
          ON CONFLICT DO NOTHING`,
         [me, target],
       );
+      notifyWithName(target, me, (name) => ({
+        kind: "friend_request",
+        title: `طلب صداقة من ${name}`,
+        body: "افتح الدردشة لقبول الطلب.",
+        target: "chat",
+        dedupeKey: `friend:${me}`,
+      }));
     } else if (link.status === "pending" && link.requesterId === target) {
       // الطرف الآخر أرسل لي طلبًا من قبل، فإرسالي له يعني القبول.
       await pool.query(
         `UPDATE clubsa_social_friends SET status = 'accepted' WHERE requester_id = $1 AND addressee_id = $2`,
         [target, me],
       );
+      notifyWithName(target, me, (name) => ({ kind: "friend_accepted", title: `${name} قبل طلب صداقتك`, target: "chat" }));
     }
     res.json({ relationship: relationshipOf(me, target, await findLink(me, target)) });
   }),
@@ -508,6 +517,7 @@ router.post(
       [target, me],
     );
     if (updated.rowCount === 0) return fail(res, 404, "no_pending_request");
+    notifyWithName(target, me, (name) => ({ kind: "friend_accepted", title: `${name} قبل طلب صداقتك`, target: "chat" }));
     res.json({ relationship: "friends" satisfies Relationship });
   }),
 );
@@ -611,6 +621,14 @@ router.post(
        RETURNING id, created_at`,
       [me, peer, parsed.text],
     );
+    // نص الرسالة لا يُنسخ في الإشعار؛ يكفي التنبيه، ويتجمّع تنبيه كل مرسل في إشعار واحد.
+    notifyWithName(peer, me, (name) => ({
+      kind: "message",
+      title: `رسالة جديدة من ${name}`,
+      body: "افتح الدردشة لقراءتها.",
+      target: "chat",
+      dedupeKey: `dm:${me}`,
+    }));
     res.status(201).json({
       message: {
         id: rows[0].id,
