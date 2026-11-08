@@ -190,6 +190,14 @@ export default function App() {
         onOpenProfile={() => setProfileOpen(true)}
         pendingInviteCount={pendingInvites.length}
         onOpenInvites={() => setInvitesOpen(true)}
+        onNotificationNavigate={(target) => {
+          if (target === "invites") setInvitesOpen(true);
+          else if (target === "profile") setProfileOpen(true);
+          else if (target === "chat" || target === "market" || target === "recruit") {
+            setProfileOpen(false);
+            setTab(target);
+          }
+        }}
       />
 
       <div className="flex-1 px-4 py-8 sm:px-8">

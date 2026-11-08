@@ -7,6 +7,7 @@ import {
   parsePrice,
   splitSale,
 } from "../lib/market-rules";
+import { notify } from "../lib/notify";
 import { authenticate, ensureTables } from "./social";
 
 const router: IRouter = Router();
@@ -350,6 +351,28 @@ router.post(
       );
 
       await client.query("COMMIT");
+      notify(playerId, {
+        kind: "transfer",
+        title: `انضممت إلى نادي ${club.name}`,
+        body: `تم انتقالك بسعر ${price.toLocaleString("en-US")}، وحصتك ${split.playerShare.toLocaleString("en-US")}.`,
+        target: "profile",
+      });
+      if (hasPreviousClub && previousClub) {
+        pool
+          .query<{ president_id: string }>("SELECT president_id FROM clubsa_social_clubs WHERE id = $1", [previousClub])
+          .then((r) => {
+            const president = r.rows[0]?.president_id;
+            if (president) {
+              notify(president, {
+                kind: "sold",
+                title: `تم بيع لاعب من ناديك إلى ${club.name}`,
+                body: `حصة ناديك من الصفقة: ${split.clubShare.toLocaleString("en-US")}`,
+                target: "market",
+              });
+            }
+          })
+          .catch(() => undefined);
+      }
       res.json({ ok: true, price, playerShare: split.playerShare, clubShare: split.clubShare, newBudget: Number(buyerWallet.balance) - price });
     } catch (error) {
       await client.query("ROLLBACK").catch(() => undefined);

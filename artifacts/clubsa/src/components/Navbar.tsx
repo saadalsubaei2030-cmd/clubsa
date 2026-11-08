@@ -1,4 +1,6 @@
-import { Bell, User, LogOut, Shield, Wallet } from "lucide-react";
+import { UserPlus, User, LogOut, Shield, Wallet } from "lucide-react";
+import NotificationBell from "@/components/NotificationBell";
+import type { NotificationTarget } from "@/lib/social";
 import { ROLE_LABELS, TABS } from "@/data";
 import type { TabId, AuthUser } from "@/types";
 import { formatBalance } from "@/lib/formatters";
@@ -10,7 +12,7 @@ function formatAmount(n: number): string {
 }
 
 export default function Navbar({
-  active, onChange, auth, onOpenLogin, onLogout, onOpenProfile, pendingInviteCount, onOpenInvites,
+  active, onChange, auth, onOpenLogin, onLogout, onOpenProfile, pendingInviteCount, onOpenInvites, onNotificationNavigate,
 }: {
   active: TabId;
   onChange: (tab: TabId) => void;
@@ -20,6 +22,7 @@ export default function Navbar({
   onOpenProfile?: () => void;
   pendingInviteCount?: number;
   onOpenInvites?: () => void;
+  onNotificationNavigate?: (target: NotificationTarget) => void;
 }) {
   return (
     <div className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur border-b border-slate-800">
@@ -42,13 +45,14 @@ export default function Navbar({
 
         {auth ? (
           <div className="flex items-center gap-2">
+            {onNotificationNavigate && <NotificationBell userId={auth.id} onNavigate={onNotificationNavigate} />}
             {onOpenInvites && (
               <button
                 onClick={onOpenInvites}
                 className="relative p-1.5 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-slate-800 transition-colors"
                 title="دعوات الأندية"
               >
-                <Bell size={16} />
+                <UserPlus size={16} />
                 {!!pendingInviteCount && (
                   <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-extrabold text-white">
                     {pendingInviteCount > 9 ? "9+" : pendingInviteCount}

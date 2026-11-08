@@ -9,6 +9,7 @@ import ranksRouter from "./ranks";
 import leaderboardsRouter from "./leaderboards";
 import accountsRouter from "./accounts";
 import recruitRouter from "./recruit";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -21,6 +22,7 @@ router.use(ranksRouter);
 router.use(leaderboardsRouter);
 router.use(accountsRouter);
 router.use(recruitRouter);
+router.use(notificationsRouter);
 router.use(clubsaRouter);
 
 export default router;
