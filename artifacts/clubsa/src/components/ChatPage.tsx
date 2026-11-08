@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Send, MessageCircle, Lock, User } from "lucide-react";
 import DirectoryPanel, { ProfileViewer } from "@/components/DirectoryPanel";
 import { SocialError, fetchAvatars, sendPublicChatMessage } from "@/lib/social";
-import { FORBIDDEN_WORDS } from "@/data";
+import { maskForbidden } from "@/lib/profanity";
 import type { AuthUser, ChatMessage } from "@/types";
 
 // الدردشة العامة تمر عبر خادم Replit حتى تظهر الرسائل لكل الزوار.
@@ -35,12 +35,7 @@ async function fetchMessages(signal?: AbortSignal): Promise<ServerMessage[]> {
 }
 
 function filterMessage(text: string): string {
-  let result = text;
-  FORBIDDEN_WORDS.forEach((w) => {
-    const re = new RegExp(w, "gi");
-    result = result.replace(re, "*".repeat(w.length));
-  });
-  return result;
+  return maskForbidden(text);
 }
 
 function timeAgo(dateStr: string): string {
