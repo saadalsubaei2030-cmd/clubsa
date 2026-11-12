@@ -1,4 +1,5 @@
 import { Shield, FileText, Mail, Info, BookOpen } from "lucide-react";
+import { DISCORD_URL } from "@/data";
 import type { LegalPage } from "@/components/LegalModal";
 
 export default function Footer({
@@ -34,6 +35,14 @@ export default function Footer({
                 {link.label}
               </a>
             ))}
+            <a
+              href={DISCORD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-xs text-indigo-300 hover:text-indigo-200 transition-colors font-bold"
+            >
+              ديسكورد CLUBSA
+            </a>
           </nav>
         </div>
 

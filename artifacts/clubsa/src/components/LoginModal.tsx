@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { X, ChevronLeft, AlertCircle, Shield, User, Loader2 } from "lucide-react";
-import { REGIONS } from "@/data";
 import type { AuthUser, UserRole } from "@/types";
 import { validateLoginEmail, validateRegistrationEmail } from "@/lib/emailValidation";
 import PasswordRecovery, { RecoveryCodeScreen } from "@/components/PasswordRecovery";
@@ -41,7 +40,7 @@ export default function LoginModal({
   const [isFreeAgent, setIsFreeAgent] = useState(false);
   const [club, setClub] = useState("");
   const [eaId, setEaId] = useState("");
-  const [region, setRegion] = useState(REGIONS[0]);
+  const region = "";  // المناطق مخفية حاليًا
   const [emailTouched, setEmailTouched] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [authError, setAuthError] = useState("");
@@ -338,19 +337,6 @@ export default function LoginModal({
                   </p>
                 </label>
               ) : null}
-
-              <label className="block">
-                <span className="text-xs text-slate-400 mb-1 block">المنطقة</span>
-                <select
-                  value={region}
-                  onChange={(e) => setRegion(e.target.value)}
-                  className="w-full bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500"
-                >
-                  {REGIONS.map((r) => (
-                    <option key={r} value={r}>{r}</option>
-                  ))}
-                </select>
-              </label>
             </div>
 
             {authError && (

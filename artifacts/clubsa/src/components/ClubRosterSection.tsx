@@ -213,7 +213,7 @@ export default function ClubRosterSection({
             <h2 className="mt-1 truncate text-xl font-extrabold text-white" style={{ fontFamily: "Cairo, sans-serif" }}>
               {club.name}
             </h2>
-            <p className="mt-1 text-xs text-slate-500">{club.region} · {members.length} أعضاء</p>
+            <p className="mt-1 text-xs text-slate-500">{members.length} أعضاء</p>
           </div>
         </div>
         {canManageInvites && onOpenInvitePlayer && (

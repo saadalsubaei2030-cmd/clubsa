@@ -92,7 +92,6 @@ function ClubProfileModal({ club, onClose }: { club: ClubProfile; onClose: () =>
           </div>
           <div>
             <h2 className="text-lg font-extrabold text-white" style={{ fontFamily: "Cairo, sans-serif" }}>{club.name}</h2>
-            <p className="text-xs text-slate-500">{club.region}</p>
           </div>
         </div>
 

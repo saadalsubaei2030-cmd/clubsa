@@ -439,7 +439,6 @@ export default function PlayerProfilePage({
               )}
               {profileSaved && <p className="mt-1 text-[11px] font-bold text-emerald-300">تم حفظ EA ID</p>}
             </div>
-            <div><p className="text-[11px] text-slate-500">المنطقة</p><p className="font-bold text-slate-200">{auth.region || "غير محددة"}</p></div>
             <div><p className="text-[11px] text-slate-500">الحالة</p><p className="font-bold text-emerald-300">{auth.joinStatus === "pending" ? "بانتظار الموافقة" : "نشط"}</p></div>
           </div>
           {!isPublic && auth.referralCode && (
