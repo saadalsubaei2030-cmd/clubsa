@@ -1,5 +1,8 @@
 import type { Position, Tab, TournamentData, CapProfile, UserRole } from "@/types";
 
+/** رابط سيرفر الديسكورد الرسمي للموقع. */
+export const DISCORD_URL = "https://discord.gg/2dUWwb4qvc";
+
 export const REGIONS = [
   "المنطقة الوسطى",
   "المنطقة الغربية",

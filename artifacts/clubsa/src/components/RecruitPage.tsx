@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Flag, Megaphone, Plus, Trash2, User, X } from "lucide-react";
-import { POSITIONS, POSITION_LABELS, REGIONS } from "@/data";
+import { POSITIONS, POSITION_LABELS } from "@/data";
 import { canManageClub } from "@/lib/permissions";
 import {
   SocialError,
@@ -59,7 +59,7 @@ function NewPostModal({
   const staff = canManageClub(auth);
   const [kind, setKind] = useState<RecruitKind>("need_club");
   const [position, setPosition] = useState(POSITIONS.some((x) => x.id === auth.position) ? (auth.position as string) : "");
-  const [region, setRegion] = useState(REGIONS.includes(auth.region ?? "") ? (auth.region as string) : "");
+  const region = "";  // المناطق مخفية حاليًا
   const [minOverall, setMinOverall] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -133,17 +133,6 @@ function NewPostModal({
               ))}
             </select>
           </label>
-          <label className="space-y-1 text-xs text-slate-400">
-            المنطقة
-            <select value={region} onChange={(e) => setRegion(e.target.value)} className={`${selectClass} w-full`}>
-              <option value="">أي منطقة</option>
-              {REGIONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
 
         <label className="block space-y-1 text-xs text-slate-400">
@@ -204,7 +193,7 @@ export default function RecruitPage({
 }) {
   const [kind, setKind] = useState<RecruitKind | "">("");
   const [position, setPosition] = useState("");
-  const [region, setRegion] = useState("");
+  const region = "";
   const [posts, setPosts] = useState<RecruitPost[] | null>(null);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
@@ -286,14 +275,6 @@ export default function RecruitPage({
             </option>
           ))}
         </select>
-        <select aria-label="المنطقة" value={region} onChange={(e) => setRegion(e.target.value)} className={selectClass}>
-          <option value="">كل المناطق</option>
-          {REGIONS.map((r) => (
-            <option key={r} value={r}>
-              {r}
-            </option>
-          ))}
-        </select>
       </div>
 
       {error && (
@@ -340,7 +321,6 @@ export default function RecruitPage({
 
               <div className="flex flex-wrap gap-1.5 text-[11px] font-bold text-slate-300">
                 <span className="rounded bg-slate-800 px-2 py-0.5">{p.position ? POSITION_LABELS[p.position] ?? p.position : "أي مركز"}</span>
-                {p.region && <span className="rounded bg-slate-800 px-2 py-0.5">{p.region}</span>}
                 {p.minOverall > 0 && <span className="rounded bg-slate-800 px-2 py-0.5">{p.kind === "need_player" ? `OVR ${p.minOverall}+` : `OVR ${p.minOverall}`}</span>}
               </div>
 

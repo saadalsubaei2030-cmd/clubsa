@@ -182,7 +182,6 @@ function UserModal({
             <span className="text-xs text-cyan-300 mt-1">{roleLabel(user.role)}</span>
           </div>
           <dl className="text-xs text-slate-300 space-y-1.5 mb-4">
-            {user.region && <Row k="المنطقة" v={user.region} />}
             {user.eaId && <Row k="EA ID" v={user.eaId} />}
             {user.position && <Row k="المركز" v={user.position} />}
             {user.overall > 0 && <Row k="التقييم" v={String(user.overall)} />}
@@ -291,7 +290,6 @@ function ClubModal({ id, onClose, onOpen }: { id: string; onClose: () => void; o
               </div>
             )}
             <h3 className="text-base font-bold text-white mt-2">{data.club.name}</h3>
-            {data.club.region && <span className="text-xs text-slate-500">{data.club.region}</span>}
           </div>
           <div className="grid grid-cols-4 gap-2 text-center text-[11px] mb-4">
             <Stat k="فوز" v={data.club.wins} />

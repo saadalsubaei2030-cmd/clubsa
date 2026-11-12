@@ -3,6 +3,7 @@ import { Send, MessageCircle, Lock, User, Trash2, Flag } from "lucide-react";
 import DirectoryPanel, { ProfileViewer } from "@/components/DirectoryPanel";
 import ModerationPanel from "@/components/ModerationPanel";
 import ReportModal from "@/components/ReportModal";
+import { DISCORD_URL } from "@/data";
 import { useModeration } from "@/hooks/useModeration";
 import { SocialError, deletePublicChatMessage, fetchAvatars, moderationErrorText, sendPublicChatMessage } from "@/lib/social";
 import { maskForbidden } from "@/lib/profanity";
@@ -200,6 +201,13 @@ export default function ChatPage({
           </button>
         </div>
       )}
+
+      <p className="mb-4 text-xs text-slate-400">
+        تبي نقاش أكثر وأخبار البطولات؟{" "}
+        <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer" className="font-bold text-indigo-300 underline">
+          انضم لسيرفر الديسكورد
+        </a>
+      </p>
 
       {moderation.sanction && (
         <div role="status" className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 mb-4 text-xs text-red-200">

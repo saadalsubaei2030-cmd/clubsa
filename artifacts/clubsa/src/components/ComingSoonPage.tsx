@@ -1,4 +1,5 @@
 import { Trophy } from "lucide-react";
+import { DISCORD_URL } from "@/data";
 
 export default function ComingSoonPage({ title, text }: { title: string; text: string }) {
   return (
@@ -13,6 +14,14 @@ export default function ComingSoonPage({ title, text }: { title: string; text: s
         قريبًا
       </span>
       <p className="mt-4 text-sm leading-relaxed text-slate-400">{text}</p>
+      <a
+        href={DISCORD_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-6 rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-500"
+      >
+        انضم لديسكورد عشان توصلك أخبار البطولة
+      </a>
     </div>
   );
 }
