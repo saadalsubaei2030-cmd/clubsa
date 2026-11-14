@@ -11,6 +11,8 @@ import accountsRouter from "./accounts";
 import recruitRouter from "./recruit";
 import notificationsRouter from "./notifications";
 import moderationRouter from "./moderation";
+import discordRouter from "./discord";
+import tournamentsRouter from "./tournaments";
 
 const router: IRouter = Router();
 
@@ -25,6 +27,8 @@ router.use(accountsRouter);
 router.use(recruitRouter);
 router.use(notificationsRouter);
 router.use(moderationRouter);
+router.use(discordRouter);
+router.use(tournamentsRouter);
 router.use(clubsaRouter);
 
 export default router;
