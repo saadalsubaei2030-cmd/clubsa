@@ -9,7 +9,7 @@ import { respondToServerInvite, sendClubInvite, toClubInvite } from "@/lib/invit
 import { ackAssignment, getMarketState } from "@/lib/market";
 import Navbar from "@/components/Navbar";
 import CalculatorPage from "@/components/CalculatorPage";
-import ComingSoonPage from "@/components/ComingSoonPage";
+import TournamentsPage from "@/components/TournamentsPage";
 import ChatPage from "@/components/ChatPage";
 import MarketPage from "@/components/MarketPage";
 import NewsPage from "@/components/NewsPage";
@@ -62,13 +62,18 @@ export default function App() {
     const next = fetchProfile(uid);
     if (next) setUser(next);
   });
-  const [tab, setTab] = useState<TabId>("calculator");
+  const [tab, setTab] = useState<TabId>(() =>
+    new URLSearchParams(window.location.search).get("tab") === "tournaments" ? "tournaments" : "calculator",
+  );
   // رابط الاسترجاع القادم من الإيميل: ‎/?reset=<token>‎ يفتح نافذة تعيين كلمة المرور مباشرة.
   const [resetToken, setResetToken] = useState<string | null>(() => {
     const token = new URLSearchParams(window.location.search).get("reset");
     return token && /^[0-9a-f]{64}$/.test(token) ? token : null;
   });
-  const [welcomeOpen, setWelcomeOpen] = useState(resetToken === null);
+  // العودة من ربط ديسكورد (?discord=linked) لا يجب أن تفتح نافذة الترحيب فوق الصفحة.
+  const [welcomeOpen, setWelcomeOpen] = useState(
+    resetToken === null && !new URLSearchParams(window.location.search).has("discord"),
+  );
   const [loginOpen, setLoginOpen] = useState(resetToken !== null);
   const [loginMode, setLoginMode] = useState<"login" | "register">("login");
   const [legalPage, setLegalPage] = useState<LegalPage | null>(null);
@@ -193,7 +198,7 @@ export default function App() {
         onNotificationNavigate={(target) => {
           if (target === "invites") setInvitesOpen(true);
           else if (target === "profile") setProfileOpen(true);
-          else if (target === "chat" || target === "market" || target === "recruit" || target === "moderation") {
+          else if (target === "chat" || target === "market" || target === "recruit" || target === "moderation" || target === "tournaments") {
             setProfileOpen(false);
             setTab(target === "moderation" ? "chat" : target);
           }
@@ -256,7 +261,7 @@ export default function App() {
         ) : (
           <>
             {tab === "calculator" && <CalculatorPage auth={auth} onRequireLogin={handleRequireLogin} onSaveBuild={(build) => auth && saveBuild(auth.id, build)} />}
-            {tab === "tournaments" && <ComingSoonPage title="البطولات" text="نجهّز لكم بطولات الأندية مع الجداول والنتائج. تابعونا." />}
+            {tab === "tournaments" && <TournamentsPage auth={auth} onRequireLogin={handleRequireLogin} />}
             {tab === "chat" && <ChatPage auth={auth} onRequireLogin={handleRequireLogin} />}
             {tab === "market" && <MarketPage auth={auth} onRequireLogin={handleRequireLogin} onOpenClubProfile={openClubProfile} onAuthRefresh={(uid) => { const next = fetchProfile(uid); if (next) setUser(next); }} />}
             {tab === "recruit" && <RecruitPage auth={auth} onRequireLogin={handleRequireLogin} />}

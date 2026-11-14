@@ -316,6 +316,31 @@ export function sendDirectMessage(userId: string, peerId: string, text: string) 
 
 /* ───────────── رسائل الأخطاء بالعربية ───────────── */
 
+export function tournamentErrorText(error: unknown): string | null {
+  if (!(error instanceof SocialError)) return null;
+  const messages: Record<string, string> = {
+    no_club: "لازم تكون في نادي عشان تسجّل في البطولة.",
+    not_president: "التسجيل في البطولات لرئيس النادي فقط.",
+    discord_required: "اربط حساب ديسكورد أولًا من هذي الصفحة.",
+    sanctioned: "حسابك موقوف حاليًا ولا يقدر يسجّل.",
+    registration_closed: "التسجيل في هذي البطولة مغلق.",
+    already_registered: "ناديك مسجّل في هذي البطولة.",
+    tournament_full: "اكتملت المقاعد.",
+    not_enough_teams: "لازم 4 أندية على الأقل عشان تبدأ البطولة.",
+    not_open: "البطولة ما عادت مفتوحة للتسجيل.",
+    not_running: "البطولة ما هي جارية.",
+    match_not_ready: "هذي المباراة غير جاهزة أو سُجلت نتيجتها.",
+    draw_not_allowed: "التعادل غير مسموح في الإقصائيات، حدد فائزًا.",
+    invalid_score: "النتيجة غير صحيحة.",
+    prize_text_required: "اكتب وصف الجائزة.",
+    invalid_title: "العنوان قصير جدًا.",
+    admin_only: "هذي العملية للمشرف فقط.",
+    already_linked: "حسابك مربوط بديسكورد بالفعل.",
+    discord_not_configured: "ربط ديسكورد غير مفعّل من الإدارة بعد.",
+  };
+  return error.code in messages ? messages[error.code] : null;
+}
+
 /** رسالة خاصة بالكتم والحظر، أو null إذا كان الخطأ شيئًا آخر. */
 export function moderationErrorText(error: unknown): string | null {
   if (!(error instanceof SocialError) || error.status !== 403) return null;
@@ -329,6 +354,8 @@ export function moderationErrorText(error: unknown): string | null {
 export function socialErrorText(error: unknown): string {
   if (error instanceof SocialError) {
     if (error.status === 429) return "محاولات كثيرة. انتظر قليلًا ثم حاول مرة أخرى.";
+    const tournament = tournamentErrorText(error);
+    if (tournament) return tournament;
     const moderated = moderationErrorText(error);
     if (moderated) return moderated;
     if (error.status === 404 && error.code === "not_found") return "لم نجد هذا الحساب. ربما لم يسجّل دخوله بعد.";
@@ -373,7 +400,7 @@ export function deletePublicChatMessage(userId: string, id: number) {
 
 /* ───────────── الإشعارات ───────────── */
 
-export type NotificationTarget = "invites" | "profile" | "chat" | "market" | "recruit" | "moderation" | "";
+export type NotificationTarget = "invites" | "profile" | "chat" | "market" | "recruit" | "moderation" | "tournaments" | "";
 
 export type AppNotification = {
   id: number;
@@ -584,4 +611,96 @@ export function fetchSanctions(userId: string) {
 
 export function liftSanction(userId: string, targetId: string) {
   return request<{ ok: boolean }>(`/moderation/sanctions/${encodeURIComponent(targetId)}`, { ...MOD, method: "DELETE", userId });
+}
+
+/* ───────────── ديسكورد والبطولات ───────────── */
+
+export type DiscordStatus = { configured: boolean; linked: boolean; name: string | null };
+export type Eligibility = {
+  hasClub: boolean;
+  isPresident: boolean;
+  clubName: string | null;
+  discordLinked: boolean;
+  discordName: string | null;
+  sanctioned: boolean;
+  admin: boolean;
+};
+export type PrizeKind = "free" | "cash" | "other";
+export type TournamentStatus = "open" | "running" | "finished" | "cancelled";
+export type TournamentSummary = {
+  id: number;
+  title: string;
+  prizeKind: PrizeKind;
+  prizeText: string;
+  maxTeams: number;
+  status: TournamentStatus;
+  startsAt: string | null;
+  entries: number;
+};
+export type BracketSide = { id: string; name: string } | null;
+export type BracketMatch = {
+  id: number;
+  round: number;
+  slot: number;
+  a: BracketSide;
+  b: BracketSide;
+  scoreA: number | null;
+  scoreB: number | null;
+  winner: string | null;
+  bye: boolean;
+};
+export type TournamentDetail = {
+  tournament: Omit<TournamentSummary, "entries"> & { rules: string; winner: BracketSide };
+  entries: { clubId: string; clubName: string; discordName: string | null; mine: boolean }[];
+  matches: BracketMatch[];
+  rounds: number;
+};
+
+export function fetchDiscordStatus(userId: string) {
+  return request<DiscordStatus>("/discord/me", { base: "/api", userId });
+}
+
+export function fetchDiscordLinkUrl(userId: string) {
+  return request<{ url: string }>("/discord/link-url", { base: "/api", userId });
+}
+
+export function fetchEligibility(userId: string) {
+  return request<Eligibility>("/tournaments/eligibility", { base: "/api", userId });
+}
+
+export function fetchTournaments(signal?: AbortSignal) {
+  return request<{ tournaments: TournamentSummary[] }>("/tournaments", { base: "/api", signal });
+}
+
+export function fetchTournament(id: number, userId?: string | null, signal?: AbortSignal) {
+  return request<TournamentDetail>(`/tournaments/${id}`, { base: "/api", userId, signal });
+}
+
+export function createTournament(
+  userId: string,
+  body: { title: string; rules: string; prizeKind: PrizeKind; prizeText: string; maxTeams: number; startsAt?: string },
+) {
+  return request<{ id: number }>("/tournaments", { base: "/api", method: "POST", userId, body });
+}
+
+export function registerForTournament(userId: string, id: number) {
+  return request<{ ok: boolean }>(`/tournaments/${id}/register`, { base: "/api", method: "POST", userId, body: {} });
+}
+
+export function withdrawFromTournament(userId: string, id: number) {
+  return request<{ ok: boolean }>(`/tournaments/${id}/register`, { base: "/api", method: "DELETE", userId });
+}
+
+export function startTournament(userId: string, id: number) {
+  return request<{ ok: boolean }>(`/tournaments/${id}/start`, { base: "/api", method: "POST", userId, body: {} });
+}
+
+export function cancelTournament(userId: string, id: number) {
+  return request<{ ok: boolean }>(`/tournaments/${id}/cancel`, { base: "/api", method: "POST", userId, body: {} });
+}
+
+export function submitMatchResult(userId: string, id: number, matchId: number, scoreA: number, scoreB: number) {
+  return request<{ ok: boolean }>(`/tournaments/${id}/matches/${matchId}/result`, {
+    base: "/api", method: "POST", userId, body: { scoreA, scoreB },
+  });
 }
