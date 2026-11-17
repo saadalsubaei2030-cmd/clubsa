@@ -3,7 +3,7 @@ import { ensureModeration } from "./moderation";
 
 /** إشعارات داخل الموقع. الإرسال "أطلق وانسَ": أي فشل هنا لا يجب أن يعطّل العملية الأصلية. */
 
-export type NotifyTarget = "invites" | "profile" | "chat" | "market" | "recruit" | "moderation";
+export type NotifyTarget = "invites" | "profile" | "chat" | "market" | "recruit" | "moderation" | "tournaments";
 
 export type NotifyInput = {
   kind: string;
